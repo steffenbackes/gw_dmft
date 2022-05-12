@@ -1,0 +1,29 @@
+4.0,0.0,0.0  # bare Coulomb F0 (srvo3: screened U= 3.51415, bare U= 16.050) and J=(F2+F4)/14 (constant), nearest-neighbour V
+1         # Read umatrix_in.dat OR use Slater/Kanamori type interaction: 0: No, use Slater/Kanamori  1: Yes, read umatrix_in.dat
+1.0       # Scale static interactions at w=0 by this value (does not change dynamical properties)
+1.0       # desired total number of electrons in the system
+2000      # N_tau points for hybridization function
+50        # Number of SC iterations
+0.001   # Maximum charge error
+1.0       # Mixing factor for the Selfenergy
+20         # N_kx kpoints
+20         # N_ky kpoints
+1         # N_kz kpoints
+2         # Use a nonlocal Selfenergy              0: No,       1: Yes, read from file, never update  2: Yes, do selfconsistent GW
+2         # Use a nonlocal Polarization            0: No,       1: Yes, read from file, never update  2: Yes, do selfconsistent EDMFT
+2         # Use a frequency-dep. imp.interaction   0: No,       1: Yes, read from udens.dat, never update  2: Yes, use from GW+DMFT cycle
+1         # GW-doublecounting to use:                1: [GW]_loc, 2: [G_locW_loc]: You have to provide s_gw_dc.dat !!!
+1         # Number of equiv. atoms (only equiv. atoms allowed) only first is solved in DMFT, then copied
+1   # which orbitals should be treated by DMFT, otherwise use GW Selfenergy (specify for all atoms!)
+1   # equivalent orbitals, separate groups by ':' e.g. for eg/t2g: 1,2:3,4,5
+0         # use general formula or Dyson for impurity quantities 0:general, 1:dyson 
+0         # diagonalize the impurity solver input: Read transformation matrix from Utrafo.dat 
+0         # set possible offdiagonal terms in Gbath to zero
+1         # Average the Hartree Term for DFT doublecounting        0: No,       1:Yes
+0         # Update the Hartree-Fock doublecounting from Gimp
+1         # spin order:                                            0:FM no symmetrization  1: PM average up/dn -1:AFM flip up/dn
+0.00      # apply external magnetic field
+0         # DCA patches x-direction
+0         # DCA patches y-direction
+0         # interpolate DCA
+0         # Continue old calculation (simp,pimp,s_gw_dc,p_gw_dc,dft_hartree_exchange,mu are needed) 0: No, 1:Yes

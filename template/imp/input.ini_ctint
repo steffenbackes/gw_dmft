@@ -1,0 +1,17 @@
+SEED=559
+timelimit=180
+total_steps=1000000000
+measurement_period=10
+thermalization_steps=15000
+
+model.sites=2
+model.spins=2
+model.beta=10.0
+model.U=4.0
+G1.n_matsubara=125
+G1.n_legendre=29
+
+model.G0_tau_file  ="gbath_tau_matrix_solver.dat"
+verbose=0
+
+

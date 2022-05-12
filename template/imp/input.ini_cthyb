@@ -1,0 +1,20 @@
+seed=657
+timelimit=900
+thermalization_time=300
+
+model.sites=5
+model.spins=2
+model.beta=40.0
+model.n_tau_hyb=2000
+measurement.G1.n_tau=2000
+measurement.G1.n_matsubara=1000
+measurement.G1.n_legendre=40
+
+model.coulomb_tensor_input_file="Uijkl.dat"
+model.hopping_matrix_input_file="mu_matrix_solver.dat"
+model.delta_input_file="delta0_matrix_solver.dat"
+verbose=0
+
+#update.swap_vector="1 0 3 2 5 4  1 2 3 4 5 0"
+
+
