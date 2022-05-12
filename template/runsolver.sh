@@ -22,14 +22,14 @@ sleep 5
 
 ############################################################
 #mpirun -np 144 hybmat input.ini > out.solver 2>&1
-mpirun -np 144 ctint_real input.ini > out.solver 2>&1
-#mpirun -np 96 alps_cthyb alps_parm.dat > out.solver 2>&1
+#mpirun -np 10 ctint_real input.ini > out.solver 2>&1
+mpirun -np 48 alps_cthyb alps_parm.dat > out.solver 2>&1
 
 echo 'Solver done, sleep 5'
 sleep 5
-#./getoutput.sh
-./getoutput_ctint.sh
-#python getoutput_seg.py
+#./getoutput_cthyb.sh
+#./getoutput_ctint.sh
+python getoutput_seg.py
 ############################################################
 
 cd ..

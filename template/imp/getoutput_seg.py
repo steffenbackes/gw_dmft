@@ -2,7 +2,7 @@ import numpy as np
 import os
 
 # read GF
-inf = open('Swl.dat_old','r')
+inf = open('Swl.dat','r')
 inf2 = open('../g_bath.dat','r')
 outf =open('Gwl.dat','w')
 
