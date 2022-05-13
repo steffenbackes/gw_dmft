@@ -273,8 +273,9 @@ write(*,'(A)') '!! WARNING !!! All the other GW routines work on the full norb !
             do iqx=0,nkx-1
             do iqy=0,nky-1
             do iqz=0,nkz-1
-               iq = iqx*nky*nkz + iqy*nkz + iqz +1
-               call progress(iq,nkpts)
+               iq =  i*norb**3*nkpts + j*norb**2*nkpts + k*norb*nkpts + l*nkpts & 
+                  & + iqx*nky*nkz + iqy*nkz + iqz +1
+               call progress(iq,nkpts*norb**4)
 
                ptmp = (0.0_kr,0.0_kr)               
 
@@ -500,8 +501,9 @@ write(*,'(A)') '!! WARNING !!! All the other GW routines work on the full norb !
             do iqx=0,nkx-1
             do iqy=0,nky-1
             do iqz=0,nkz-1
-               iq = iqx*nky*nkz + iqy*nkz + iqz +1
-               call progress(iq,nkpts)
+               iq =  a*norb*nkpts + b*nkpts & 
+                  & + iqx*nky*nkz + iqy*nkz + iqz +1
+               call progress(iq,nkpts*norb**2)
 
                stmp = (0.0_kr,0.0_kr)               
 

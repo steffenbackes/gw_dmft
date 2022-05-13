@@ -499,7 +499,7 @@ program main
 
    ! This has been allocated when reading the input in io_ops.f90
    deallocate( dmftOrbsIndex )
-   deallocate( degOrbs%noDegenOrbs )
-   deallocate( degOrbs%degenOrbsIndex )
+!   deallocate( degOrbs%noDegenOrbs )
+!   deallocate( degOrbs%degenOrbsIndex )
    
 end program main

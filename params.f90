@@ -6,11 +6,12 @@ module params
    use constants
    implicit none
    ! this is used to store information about the DMFT degenerate orbitals
-   type degenarateOrbitals
-      integer             :: noGroups
-      integer,allocatable :: noDegenOrbs(:)         ! noGroups
-      integer,allocatable :: degenOrbsIndex(:,:)    ! noGroups, noDegenOrbs(group)
-   end type degenarateOrbitals
+!   type degenarateOrbitals
+!      integer             :: noGroups
+!      integer,allocatable :: noDegenOrbs(:)         ! noGroups
+!      integer,allocatable :: degenOrbsIndex(:,:)    ! noGroups, noDegenOrbs(group)
+!   end type degenarateOrbitals
+   integer(ki)          :: orbSym   ! 0: no sym, 1:determine yourself, 2:  provide orbsym.dat
 
    ! these are variables given by the GW/DFT input from gw_input.dat
    integer(ki)          :: nomega, nnu, norb, nspin, gw_nspin
@@ -24,7 +25,7 @@ module params
    integer(ki)              :: updateHFdc
    integer(ki)              :: norb_dmft, noEquivAtoms, norbPerAtom, bathMethod
    integer(ki),allocatable  :: dmftOrbsIndex(:)
-   type(degenarateOrbitals) :: degOrbs
+!   type(degenarateOrbitals) :: degOrbs
    real(kr)                 :: beta, nel, mu, charge_error, mixing
    real(kr)                 :: Uinput, Jinput, Unninput, U0scaleFac
    real(kr)                 :: hfield(2)        

@@ -14,8 +14,8 @@
 2         # Use a frequency-dep. imp.interaction   0: No,       1: Yes, read from udens.dat, never update  2: Yes, use from GW+DMFT cycle
 1         # GW-doublecounting to use:                1: [GW]_loc, 2: [G_locW_loc]: You have to provide s_gw_dc.dat !!!
 1         # Number of equiv. atoms (only equiv. atoms allowed) only first is solved in DMFT, then copied
-1   # which orbitals should be treated by DMFT, otherwise use GW Selfenergy (specify for all atoms!)
-1   # equivalent orbitals, separate groups by ':' e.g. for eg/t2g: 1,2:3,4,5
+1         # which orbitals should be treated by DMFT, otherwise use GW Selfenergy (specify for all atoms!)
+2         # symmetrization of orbitals:            0: No,       1: Yes, let the code figure it out,    2: Yes, provide symmetries in orbsym.dat
 0         # use general formula or Dyson for impurity quantities 0:general, 1:dyson 
 0         # diagonalize the impurity solver input: Read transformation matrix from Utrafo.dat 
 0         # set possible offdiagonal terms in Gbath to zero

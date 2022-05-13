@@ -79,7 +79,8 @@ module io_ops
       read(iounit,*) DCtype
       read(iounit,*) noEquivAtoms
       call read_dmft_orbitals(iounit)
-      call read_degenerate_orbitals(iounit)
+!      call read_degenerate_orbitals(iounit)
+      read(iounit,*) orbSym
       read(iounit,*) bathMethod
       read(iounit,*) diagBath
       read(iounit,*) neglectOffdiagBath
@@ -114,6 +115,7 @@ module io_ops
       write(*,'(A18,I2)') 'useUw =',useUw
       write(*,'(A18,I2)') 'doublecounting =',DCtype
       write(*,'(A18,I2)') 'no. equiv. atoms =',noEquivAtoms
+      write(*,'(A18,I2)') 'orbital Symmetrie =',orbSym
       write(*,'(A18,I2)') 'bath method =',bathMethod
       write(*,'(A18,I2)') 'diagonalize bath =',diagBath
       write(*,'(A18,I2)') 'neglect offdiag. Elements =',neglectOffdiagBath
@@ -159,7 +161,6 @@ module io_ops
 
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-
       ! Print info about orbitals used in DMFT
       write(*,'(A)') ' == Orbitals for DMFT: =========================================='
       write(*,'(A,I2,A,I2,A)',advance='no') ' == ',norb_dmft,' orbitals out of ',norb,' are treated in DMFT: '
@@ -191,17 +192,17 @@ module io_ops
          stop 1
       endif
 
-      write(*,'(A)') ' == -------------------------------------------------------------'
-      ! Print info about degenerate orbitals
-      write(*,'(A,I2,A)') ' == Found ', degOrbs%noGroups ,' groups of degenerate orbitals:'
-      do i=1,degOrbs%noGroups
-         write(*,'(A)',advance='no') ' == '
-         do j=1,degOrbs%noDegenOrbs(i)-1
-            write(*,'(I2,A)', advance='no') degOrbs%degenOrbsIndex(i,j),' <->'
-         enddo
-         write(*,'(I2)') degOrbs%degenOrbsIndex(i, degOrbs%noDegenOrbs(i) )
-      enddo
-      write(*,'(A)') ' ================================================================'
+!      write(*,'(A)') ' == -------------------------------------------------------------'
+!      ! Print info about degenerate orbitals
+!      write(*,'(A,I2,A)') ' == Found ', degOrbs%noGroups ,' groups of degenerate orbitals:'
+!      do i=1,degOrbs%noGroups
+!         write(*,'(A)',advance='no') ' == '
+!         do j=1,degOrbs%noDegenOrbs(i)-1
+!            write(*,'(I2,A)', advance='no') degOrbs%degenOrbsIndex(i,j),' <->'
+!         enddo
+!         write(*,'(I2)') degOrbs%degenOrbsIndex(i, degOrbs%noDegenOrbs(i) )
+!      enddo
+!      write(*,'(A)') ' ================================================================'
       write(*,'(A)') ''
 
       ! check if offdiagonals and diagonlization make sense
@@ -385,101 +386,101 @@ module io_ops
 !  ============================================================
 !  == Read the degenerate DMFT orbitals
 !  ============================================================
-   subroutine read_degenerate_orbitals(iounit)
-        use params
-        integer,intent(in)  :: iounit
-        character           :: singlec
-        integer(ki)         :: n,m,i, tmpi, justreadinteger
-        integer(ki)         :: degenindex, degengroup
-        integer,allocatable :: degenarraytmp(:,:,:)
-
-        allocate( degenarraytmp(norb,norb,2) )
-        degenarraytmp = (0)
-        degenindex = 1
-        degengroup = 1
-        justreadinteger = -1
-
-        read(iounit,'(A)', advance='no') singlec
-        do while (singlec /= '#')
-           ! we have read one character, and it's not #
-
-           ! check if its an integer
-           tmpi = ichar(singlec) - ichar('0')
-           if ( tmpi .ge. 0 .and. tmpi .le. 9 ) then
-
-              ! If we have just read an integer before without any separation,
-              ! it must be something larger than 9, so add this
-              if (justreadinteger == 1) then
-                 degenarraytmp(degengroup,degenindex,1) = degenarraytmp(degengroup,degenindex,1)*10 + tmpi
-              else
-                 degenarraytmp(degengroup,degenindex,1) = tmpi
-              endif
-              degenarraytmp(degengroup,1,2) = degenindex
-
-              justreadinteger = 1
-
-           ! if not, then it's something else
-           else
-              ! did we read an integer before? then we can increase the index
-              if(justreadinteger==1) degenindex = degenindex + 1
-
-              ! now we can reset this
-              justreadinteger = -1
-
-              ! check if doublecolon, then we have new group
-              ! if degenindex 1, no orbitals have been specified yet
-              if (singlec == ':' .and. degenindex>1) then
-                 degengroup = degengroup +1
-                 degenindex = 1
-              endif
-           endif
-
-           ! Read the next character in the line anbd repeat
-           read(iounit,'(A)', advance='no') singlec
-        enddo
-
-        ! Check if the last group is empty
-        if (degenindex==1) degengroup = degengroup-1
-
-        ! Check if specified orbitals acutally exist
-        do n=1,degengroup
-           do m=1,degenarraytmp(n,1,2)
-              tmpi = 0
-              ! is this orbital also appearing in the DMFT orbitals?
-            !  do i=1,norb_dmft
-            !     if ( degenarraytmp(n,m,1) == dmftOrbsIndex(i) ) tmpi = 1
-              do i=1,norb
-                 if ( degenarraytmp(n,m,1) == i ) tmpi = 1
-              enddo
-              if ( tmpi == 0 ) then
-                 write(*,'(A,I2,A)') 'ERROR: Specified degenerate orbital ',degenarraytmp(n,m,1),  &
-                              &      ', which is not in the orbital list !!!'
-                 stop 1
-              endif
-           enddo
-        enddo
-
-        ! are there degenerate orbitals at all?
-        if ( degengroup==0 ) then
-           write(*,'(A)') 'No degenerate orbitals specified'
-           degOrbs%noGroups = 0
-        else
-            ! Yes there are
-            ! Allocate with norb_dmft, this might be too much but we dont care
-            degOrbs%noGroups = degengroup
-            allocate( degOrbs%noDegenOrbs(degengroup) )         ! groups
-            allocate( degOrbs%degenOrbsIndex(degengroup,norb_dmft) ) ! groups, orbs of group
-
-            do n=1,degOrbs%noGroups
-               ! copy all orbitals in group n into the array, their number is given in degenarraytmp(n,1,2)
-               degOrbs%noDegenOrbs(n) = degenarraytmp(n,1,2)
-               degOrbs%degenOrbsIndex(n,1:degOrbs%noDegenOrbs(n)) = degenarraytmp(n, 1:degOrbs%noDegenOrbs(n), 1)
-            enddo
-        endif
-        read(iounit,'(A)')
-        deallocate( degenarraytmp )
-
-   end subroutine read_degenerate_orbitals
+!   subroutine read_degenerate_orbitals(iounit)
+!        use params
+!        integer,intent(in)  :: iounit
+!        character           :: singlec
+!        integer(ki)         :: n,m,i, tmpi, justreadinteger
+!        integer(ki)         :: degenindex, degengroup
+!        integer,allocatable :: degenarraytmp(:,:,:)
+!
+!        allocate( degenarraytmp(norb,norb,2) )
+!        degenarraytmp = (0)
+!        degenindex = 1
+!        degengroup = 1
+!        justreadinteger = -1
+!
+!        read(iounit,'(A)', advance='no') singlec
+!        do while (singlec /= '#')
+!           ! we have read one character, and it's not #
+!
+!           ! check if its an integer
+!           tmpi = ichar(singlec) - ichar('0')
+!           if ( tmpi .ge. 0 .and. tmpi .le. 9 ) then
+!
+!              ! If we have just read an integer before without any separation,
+!              ! it must be something larger than 9, so add this
+!              if (justreadinteger == 1) then
+!                 degenarraytmp(degengroup,degenindex,1) = degenarraytmp(degengroup,degenindex,1)*10 + tmpi
+!              else
+!                 degenarraytmp(degengroup,degenindex,1) = tmpi
+!              endif
+!              degenarraytmp(degengroup,1,2) = degenindex
+!
+!              justreadinteger = 1
+!
+!           ! if not, then it's something else
+!           else
+!              ! did we read an integer before? then we can increase the index
+!              if(justreadinteger==1) degenindex = degenindex + 1
+!
+!              ! now we can reset this
+!              justreadinteger = -1
+!
+!              ! check if doublecolon, then we have new group
+!              ! if degenindex 1, no orbitals have been specified yet
+!              if (singlec == ':' .and. degenindex>1) then
+!                 degengroup = degengroup +1
+!                 degenindex = 1
+!              endif
+!           endif
+!
+!           ! Read the next character in the line anbd repeat
+!           read(iounit,'(A)', advance='no') singlec
+!        enddo
+!
+!        ! Check if the last group is empty
+!        if (degenindex==1) degengroup = degengroup-1
+!
+!        ! Check if specified orbitals acutally exist
+!        do n=1,degengroup
+!           do m=1,degenarraytmp(n,1,2)
+!              tmpi = 0
+!              ! is this orbital also appearing in the DMFT orbitals?
+!            !  do i=1,norb_dmft
+!            !     if ( degenarraytmp(n,m,1) == dmftOrbsIndex(i) ) tmpi = 1
+!              do i=1,norb
+!                 if ( degenarraytmp(n,m,1) == i ) tmpi = 1
+!              enddo
+!              if ( tmpi == 0 ) then
+!                 write(*,'(A,I2,A)') 'ERROR: Specified degenerate orbital ',degenarraytmp(n,m,1),  &
+!                              &      ', which is not in the orbital list !!!'
+!                 stop 1
+!              endif
+!           enddo
+!        enddo
+!
+!        ! are there degenerate orbitals at all?
+!        if ( degengroup==0 ) then
+!           write(*,'(A)') 'No degenerate orbitals specified'
+!           degOrbs%noGroups = 0
+!        else
+!            ! Yes there are
+!            ! Allocate with norb_dmft, this might be too much but we dont care
+!            degOrbs%noGroups = degengroup
+!            allocate( degOrbs%noDegenOrbs(degengroup) )         ! groups
+!            allocate( degOrbs%degenOrbsIndex(degengroup,norb_dmft) ) ! groups, orbs of group
+!
+!            do n=1,degOrbs%noGroups
+!               ! copy all orbitals in group n into the array, their number is given in degenarraytmp(n,1,2)
+!               degOrbs%noDegenOrbs(n) = degenarraytmp(n,1,2)
+!               degOrbs%degenOrbsIndex(n,1:degOrbs%noDegenOrbs(n)) = degenarraytmp(n, 1:degOrbs%noDegenOrbs(n), 1)
+!            enddo
+!        endif
+!        read(iounit,'(A)')
+!        deallocate( degenarraytmp )
+!
+!   end subroutine read_degenerate_orbitals
 
 
 

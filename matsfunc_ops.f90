@@ -2714,12 +2714,12 @@ write(*,'(A)') 'WARNING: DO NOT FULLY RESET THE SELFENERGY !!!!'
    subroutine symmetrize_matsubara(myname,f)
       character(len=*),intent(in) :: myname
       complex(kr),intent(inout)   :: f(:,:,:,:)        ! norb,norb,nspin,nomega
-      integer(ki)                 :: s,grp,m, n, i,j,a,b, nunique
+      integer(ki)                 :: s,grp,m, n, i,j,a,b, nunique, iounit=13
       complex(kr),allocatable     :: tmp(:,:,:),     & ! norb,norb,nomega
                                   &  tmp2(:,:)         ! nspin,nomega
       real(kr),allocatable       :: maxdiff(:,:,:,:)   ! norb,norb : norb,norb
       integer(ki),allocatable    :: unique(:,:)       ! norb,norb 
-      integer(ki),allocatable    :: sym(:,:)           ! norb,norb 
+      integer(ki),allocatable    :: sym(:,:), symmat_in(:,:)           ! norb,norb 
       complex(kr)                :: symtmp(nomega)
       
       ! average or flip spin depending on parameters
@@ -2747,6 +2747,7 @@ write(*,'(A)') 'WARNING: DO NOT FULLY RESET THE SELFENERGY !!!!'
          deallocate(tmp)
       endif
 
+! old method for only diagonals !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       ! orbital symmetries
 !      if ( degOrbs%noGroups > 0 ) then
 !         write(*,'(A,A,A)') ' Symmetrize orbital components of ',myname,' (only the diagonals) ...'
@@ -2771,121 +2772,129 @@ write(*,'(A)') 'WARNING: DO NOT FULLY RESET THE SELFENERGY !!!!'
 !         deallocate( tmp2 )
 !      endif
 
-      
-      allocate( maxdiff(norb,norb,norb,norb) )
-      allocate( unique(norb,norb) )
-      allocate( sym(norb,norb) )
 
-      do s=1,nspin
+      if (orbSym==0) then
+         ! no symmetrization
+      else
+         allocate( maxdiff(norb,norb,norb,norb) )
+         allocate( unique(norb,norb) )
+         allocate( sym(norb,norb) )
+         allocate( symmat_in(norb,norb) )
          maxdiff = (0.0_kr)
-
-         ! get maxdiff
-         do i=1,norb
-            do j=1,norb
-               do a=1,norb
-                  do b=1,norb
-                     do n=1,nomega
-                        if ( abs( f(i,j,s,n) - f(a,b,s,n) ) .gt. maxdiff(i,j,a,b) ) then
-                           maxdiff(i,j,a,b) = abs( f(i,j,s,n) - f(a,b,s,n) )
-                        endif
+      
+         do s=1,nspin
+            if (orbSym==1) then  ! determine the symmetry yourself from looking at the differences      
+      
+               ! get maxdiff
+               do i=1,norb
+                  do j=1,norb
+                     do a=1,norb
+                        do b=1,norb
+                           do n=1,nomega
+                              if ( abs( f(i,j,s,n) - f(a,b,s,n) ) .gt. maxdiff(i,j,a,b) ) then
+                                 maxdiff(i,j,a,b) = abs( f(i,j,s,n) - f(a,b,s,n) )
+                              endif
+                           enddo
+                        enddo
                      enddo
                   enddo
                enddo
+
+            else if (orbSym==2) then ! read the orbSym matrix and proceed as before
+               open(unit=iounit,file="orbsym.dat",status="old")
+               do i=1,norb
+                  read(iounit,*) symmat_in(i,:)
+               enddo
+               rewind(iounit)
+               close(iounit)
+
+               do i=1,norb
+                  do j=1,norb
+                     do a=1,norb
+                        do b=1,norb
+                              if ( abs( symmat_in(i,j) - symmat_in(a,b) ) .gt. maxdiff(i,j,a,b) ) then
+                                 maxdiff(i,j,a,b) = abs( symmat_in(i,j) - symmat_in(a,b) )
+                              endif
+                        enddo
+                     enddo
+                  enddo
+               enddo
+            endif ! orbSym==1 or 2
+
+            unique = (1_ki)
+            sym = (0)
+            nunique = 1 ! count number of nonunique entries
+   
+            do i=1,norb
+               do j=1,norb
+   
+                  if ( unique(i,j)==1_ki ) then
+                     sym(i,j) = nunique
+                     nunique = nunique+1
+                  else
+                     cycle
+                  endif
+   
+                  do a=1,norb
+                     do b=1,norb
+                  
+                        if ( a.eq.i .and. b.eq.j) cycle
+   
+                        if ( maxdiff(i,j,a,b) .lt. 0.001 .and. unique(i,j)==1_ki ) then
+                           sym(a,b) = sym(i,j)
+                           unique(a,b) = 0_ki
+                        endif
+   
+                     enddo ! b
+                  enddo ! a 
+               enddo ! j
+            enddo ! i
+            
+            ! there are nunique-1 unique elements because we started counting at 1
+            nunique = nunique-1
+   
+            write(*,'(A,I4,A,A,A,I1)') ' Found ',nunique,' unique elements in ',myname,' for s = ',s
+            write(*,'(A)') ' Symmetries:'
+            do i=1,norb
+               do j=1,norb
+                  write(*,'(I4,1X)',advance='no') sym(i,j) 
+               enddo
+               write(*,'(A)') ' '
             enddo
-         enddo
-
-         unique = (1_ki)
-         sym = (0)
-         nunique = 1 ! count number of nonunique entries
-
-         do i=1,norb
-            do j=1,norb
-
-               if ( unique(i,j)==1_ki ) then
-                  sym(i,j) = nunique
-                  nunique = nunique+1
-               else
-                  cycle
-               endif
-
-               do a=1,norb
-                  do b=1,norb
-               
-                     if ( a.eq.i .and. b.eq.j) cycle
-
-                     if ( maxdiff(i,j,a,b) .lt. 0.001 .and. unique(i,j)==1_ki ) then
-                        sym(a,b) = sym(i,j)
-                        unique(a,b) = 0_ki
+   
+            ! now symmetrize
+            do m=1,nunique
+   
+               symtmp = (0.0_kr,0.0_kr)
+               n = 0           ! count how many identical elements for normalization
+   
+               do i=1,norb
+                  do j=1,norb
+                     if (sym(i,j) == m) then
+                        symtmp = symtmp + f(i,j,s,:)
+                        n = n+1
                      endif
-
-                  enddo ! b
-               enddo ! a 
-            enddo ! j
-         enddo ! i
-         
-         ! there are nunique-1 unique elements because we started counting at 1
-         nunique = nunique-1
-
-!         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!         nunique = 3
-!         sym(1,1) = 1
-!         sym(1,2) = 2
-!         sym(1,3) = 2
-!         sym(1,4) = 3
-!         sym(2,1) = 2
-!         sym(2,2) = 1
-!         sym(2,3) = 3
-!         sym(2,4) = 2
-!         sym(3,1) = 2
-!         sym(3,2) = 3
-!         sym(3,3) = 1
-!         sym(3,4) = 2
-!         sym(4,1) = 3
-!         sym(4,2) = 2
-!         sym(4,3) = 2
-!         sym(4,4) = 1
-!         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-         write(*,'(A,I4,A,A,A,I1)') ' Found ',nunique,' unique elements in ',myname,' for s = ',s
-         write(*,'(A)') ' Symmetries:'
-         do i=1,norb
-            do j=1,norb
-               write(*,'(I4,1X)',advance='no') sym(i,j) 
-            enddo
-            write(*,'(A)') ' '
-         enddo
-
-         ! now symmetrize
-         do m=1,nunique
-
-            symtmp = (0.0_kr,0.0_kr)
-            n = 0           ! count how many identical elements for normalization
-
-            do i=1,norb
-               do j=1,norb
-                  if (sym(i,j) == m) then
-                     symtmp = symtmp + f(i,j,s,:)
-                     n = n+1
-                  endif
+                  enddo
                enddo
-            enddo
-
-            do i=1,norb
-               do j=1,norb
-                  if (sym(i,j) == m) then
-                     f(i,j,s,:) = symtmp / n
-                  endif
+   
+               do i=1,norb
+                  do j=1,norb
+                     if (sym(i,j) == m) then
+                        f(i,j,s,:) = symtmp / n
+                     endif
+                  enddo
                enddo
-            enddo
+   
+            enddo ! m=1,nunique
+   
+         enddo ! s
+   
+         deallocate( maxdiff )
+         deallocate( unique )
+         deallocate( sym )
+         deallocate( symmat_in )
 
-         enddo
-
-      enddo ! s
-
-      deallocate( maxdiff )
-      deallocate( unique )
-      deallocate( sym )
-      
+      endif
 
    end subroutine symmetrize_matsubara
 
