@@ -891,7 +891,7 @@ module matsfunc_ops
       write(*,'(A)') 'Obtain Selfenergy from Dyson equation...'
 
 
-write(*,'(A)') 'WARNING: DO NOT FULLY RESET THE SELFENERGY !!!!'
+      write(*,'(A)') 'We only read the impurity Self-energy for the DMFT orbitals, others are not modified'
 !      sigma = (0.0_kr,0.0_kr)
 
       ! When reading in Gimp we already copied the imp.GF from the
