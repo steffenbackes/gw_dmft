@@ -27,7 +27,7 @@ module params
    integer(ki),allocatable  :: dmftOrbsIndex(:)
 !   type(degenarateOrbitals) :: degOrbs
    real(kr)                 :: beta, nel, mu, charge_error, mixing
-   real(kr)                 :: Uinput, Jinput, Unninput, U0scaleFac
+   real(kr)                 :: Uinput, Jinput, Unninput, U0scaleFac,dist_interaction
    real(kr)                 :: hfield(2)        
    complex(kr),allocatable  :: Utrafo(:,:,:),UtrafoT(:,:,:)         ! Basis transformation (norbPerAtom,norbPerAtom.nspin)
    !!

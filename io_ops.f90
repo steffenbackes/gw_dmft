@@ -62,7 +62,7 @@ module io_ops
       ! the screened ones at w=0 are deduced from the U(inu_n) function that is read later
 
       open(unit=iounit,file="dmft_input.dat",status="old")
-      read(iounit,*) Uinput,Jinput,Unninput
+      read(iounit,*) Uinput,Jinput,Unninput,dist_interaction
       read(iounit,*) readUmatrix
       read(iounit,*) U0scaleFac
       read(iounit,*) nel
@@ -98,7 +98,8 @@ module io_ops
       write(*,*) 'Read DMFT input: [eV]'
       write(*,'(A,F8.3)') 'bare U_avg (F0)       = ',Uinput
       write(*,'(A,F8.3)') 'bare J_avg (F0+F2/14) = ',Jinput
-      write(*,'(A,F8.3)') 'bare U_nn (dens.) = ',Unninput
+      write(*,'(A,F8.3)') 'bare U_nn (dens.)     = ',Unninput
+      write(*,'(A,F8.3)') 'nonlocal Int. range   = ',dist_interaction
       
       write(*,'(A18,I2)') 'readUmatrix =',readUmatrix
       write(*,'(A18,F8.3)') 'U0scaleFac =',U0scaleFac
@@ -1631,7 +1632,8 @@ do ik=0,nkx/2 + nky/2 + nky/2 + nkz/2
       if (size(f(1,1,1,:,1))==nkpts) then
 
       open(unit=iounit,file=filename,status="unknown")
-
+      write(*,*) 'Writing kdep_fs for ',filename
+                     
       do ikx=1,nkx
          do iky=1,nky
             ik = (ikx-1)*nky*nkz + (iky-1)*nkz + 1

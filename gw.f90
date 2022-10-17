@@ -16,8 +16,8 @@ module gw
    subroutine setup_bare_interaction(V)
       complex(kr),intent(inout)    :: V(:,:,:,:,:)      ! norb**2,norb**2,nspin,nkpts,nnu
 
-      integer(ki)            :: m1,m2,a,b, iounit=13, i,j, ikx,iky,ikz, ik
-      real(kr)               :: F2,F4,F0,U0,J1,J2,J3,J4,Jmat(5,5), kx, ky, kz
+      integer(ki)            :: m1,m2,a,b, iounit=13, i,j, ikx,iky,ikz, ik,x,y
+      real(kr)               :: F2,F4,F0,U0,J1,J2,J3,J4,Jmat(5,5), kx, ky, kz, dist
       real(kr)               :: readUtmp(norb_dmft,norb_dmft),readJtmp(norb_dmft,norb_dmft)
 
       write(*,'(A)') ' Set up the bare interaction...'
@@ -157,7 +157,7 @@ write(*,'(A)') '!! WARNING !!! All the other GW routines work on the full norb !
 !      else
          ! We have usePolK==1
 
-      ! Now add a nearest neighbour interaction (if needed)
+      ! Now add a long-range interaction (if needed)
       if ( size(V(1,1,1,:,1))==nkpts ) then
          do ikx=0,nkx-1
          do iky=0,nky-1
@@ -174,7 +174,15 @@ write(*,'(A)') '!! WARNING !!! All the other GW routines work on the full norb !
                      a = (m1-1)*norb+m1
                      b = (m2-1)*norb+m2
    
-                     V(a,b,:,ik,:) = V(a,b,:,ik,:) + 2*Unninput*( cos(kx)+cos(ky)+0*cos(kz) )
+                     !V(a,b,:,ik,:) = V(a,b,:,ik,:) + 2*Unninput*( cos(kx)+cos(ky)+0*cos(kz) )
+                     do x=-dist_interaction,dist_interaction
+                        do y=-dist_interaction,dist_interaction
+                           dist = sqrt(1.0*x*x+y*y)
+                           if ( ( x .ne. 0 .or. y .ne. 0) .and. dist .le. dist_interaction ) then
+                              V(a,b,:,ik,:) = V(a,b,:,ik,:) + Unninput * exp(ci*(kx*x + ky*y)) / dist
+                           endif
+                        enddo
+                     enddo
                   enddo     
                enddo
          enddo
@@ -218,10 +226,10 @@ write(*,'(A)') '!! WARNING !!! All the other GW routines work on the full norb !
 
       write(*,'(A)') ' Filling the G(tau) array for the GG calculation...'
       do iqx=0,nkx-1
+         call progress(iqx,nkx)
       do iqy=0,nky-1
       do iqz=0,nkz-1
          iq = iqx*nky*nkz + iqy*nkz + iqz +1
-         call progress(iq,nkpts)
       
          do s=1,nspin
             ! first get the c2 coeff at the largest matsubara freq
@@ -271,11 +279,12 @@ write(*,'(A)') '!! WARNING !!! All the other GW routines work on the full norb !
             endif
 
             do iqx=0,nkx-1
+               call progress(iqx,nkx)
             do iqy=0,nky-1
             do iqz=0,nkz-1
-               iq =  i*norb**3*nkpts + j*norb**2*nkpts + k*norb*nkpts + l*nkpts & 
-                  & + iqx*nky*nkz + iqy*nkz + iqz +1
-               call progress(iq,nkpts*norb**4)
+               !iq =  i*norb**3*nkpts + j*norb**2*nkpts + k*norb*nkpts + l*nkpts & 
+               !   & + iqx*nky*nkz + iqy*nkz + iqz +1
+               iq = iqx*nky*nkz + iqy*nkz + iqz +1
 
                ptmp = (0.0_kr,0.0_kr)               
 
@@ -450,10 +459,10 @@ write(*,'(A)') '!! WARNING !!! All the other GW routines work on the full norb !
 
       write(*,'(A)') ' Filling the W(tau) array for the GW calculation...'
       do iqx=0,nkx-1
+         call progress(iqx,nkx)
       do iqy=0,nky-1
       do iqz=0,nkz-1
          iq = iqx*nky*nkz + iqy*nkz + iqz +1
-         call progress(iq,nkpts)
       
          do s=1,nspin
             ! get the high freq coefficients to take out the bare constant part
@@ -499,11 +508,12 @@ write(*,'(A)') '!! WARNING !!! All the other GW routines work on the full norb !
             endif
 
             do iqx=0,nkx-1
+               call progress(iqx,nkx)
             do iqy=0,nky-1
             do iqz=0,nkz-1
-               iq =  a*norb*nkpts + b*nkpts & 
-                  & + iqx*nky*nkz + iqy*nkz + iqz +1
-               call progress(iq,nkpts*norb**2)
+               !iq =  a*norb*nkpts + b*nkpts & 
+               !   & + iqx*nky*nkz + iqy*nkz + iqz +1
+               iq = iqx*nky*nkz + iqy*nkz + iqz +1
 
                stmp = (0.0_kr,0.0_kr)               
 

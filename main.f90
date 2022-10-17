@@ -189,6 +189,11 @@ program main
    call get_W(W_gw,P_gw,pimp,p_gw_dc,V_gw)
    call write_kdep_fs("W_G0G0_fs.dat",W_gw,0)
    call write_locpart_matsfunc_bos("W_G0G0_loc.dat",W_gw)
+      
+   call get_uloc(uloc,P_gw,pimp,p_gw_dc,W_gw,V_gw,.false.)
+   call print_umatrix(uloc)
+   call write_loc_matsfunc_bos_matrix("u_loc_G0G0.dat",uloc)
+   call write_pade_loc(uloc,"u_loc_G0G0_pade.dat",.false.)
    
    call sigma_gw(S_gw,W_gw,gf_tau)
    call write_kdep_fs("sigma_G0W0_fs.dat",S_gw,1)
@@ -221,7 +226,7 @@ program main
       call write_hartree_exchange("dft_hartree_exchange.dat",dft_hartree,dft_exchange)
    endif
 !!!!!!!!!!!!!!
-!call reperiod_sigma(s_gw,simp)
+!call reperiod_sigma(S_gw,simp,h_dft,v_xc,s_gw_dc,dft_hartree,dft_exchange)
 !!!!!!!!!!!!!!!!!!!
    call check_sym("s_imp_init.dat",simp)
 
@@ -267,6 +272,8 @@ program main
    call write_kdep_fs("W_fs.dat",W_gw,0)
    call write_locpart_matsfunc_bos("W_loc.dat",W_gw)
    call get_locpart_mats(wloc,W_gw)
+   call write_pade_loc(wloc,"w_loc_pade.dat",.false.)
+   call write_pade_loc(uloc,"u_loc_pade.dat",.false.)
    
    call sigma_gw(S_gw,W_gw,gf_tau)
    call get_sigma_gw_doublecounting(s_gw_dc,S_gw,gloc,wloc)
@@ -359,7 +366,7 @@ program main
 
 !      call check_sym("s_imp before reperiod",simp)
       ! reperiodize the Selfenergy in Cluster calculations (lots of hardcoding needed)
-!      call reperiod_sigma(S_gw,simp)
+!      call reperiod_sigma(S_gw,simp,h_dft,v_xc,s_gw_dc,dft_hartree,dft_exchange)
 !      call check_sym("s_imp after reperiod",simp)
 
       if (updateHFdc==1) then

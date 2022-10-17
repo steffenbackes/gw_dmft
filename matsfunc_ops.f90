@@ -1085,14 +1085,23 @@ module matsfunc_ops
 !  ============================================================
 !  == Reperiodize sigma - HIGHLY HARDCODED !!!
 !  ============================================================
-   subroutine reperiod_sigma(s_gw,simp)
+   subroutine reperiod_sigma(s_gw,simp,h_dft,v_xc,s_gw_dc,dft_hartree,dft_exchange)
       complex(kr),intent(inout) :: s_gw(:,:,:,:,:)     ! norb,norb,nspin,nkpts,nomega
       complex(kr),intent(inout) :: simp(:,:,:,:)       ! norb,norb,nspin,nomega
-      integer(ki)               :: ikx,iky,i, ik, m1,m2
-      real(kr)                  :: kx,ky
-      complex(kr),allocatable   :: stmp(:,:)       ! nspin,nomega
+      complex(kr),intent(in)    :: h_dft(:,:,:,:)      ! norb,norb,nspin,nkpts
+      complex(kr),intent(in)    :: v_xc(:,:,:,:)       ! norb,norb,nspin,nkpts
+      complex(kr),intent(in)    :: s_gw_dc(:,:,:,:)    ! norb,norb,nspin,nomega
+      real(kr),intent(in)       :: dft_hartree(:,:,:)  ! norb,norb,nspin
+      real(kr),intent(in)       :: dft_exchange(:,:,:) ! norb,norb,nspin
 
-      allocate( stmp(nspin,nomega) )
+
+      integer(ki)               :: ikx,iky,i, ik, m1,m2, n, s
+      real(kr)                  :: kx,ky
+      complex(kr),allocatable   :: sloc(:,:,:,:)       !norb,norb,nspin,nomega
+      complex(kr)               :: gtmp(norb,norb), gunf(norb,norb), g0unf(norb,norb)
+      complex(kr)               :: U(norb,norb), Ud(norb,norb)
+
+      allocate( sloc(norb,norb,nspin,nomega) )
 
       write(*,*) ''
       write(*,*) '!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
@@ -1101,6 +1110,7 @@ module matsfunc_ops
       write(*,*) ''
 
       s_gw = (0.0_kr,0.0_kr)
+      sloc = (0.0_kr,0.0_kr)
 
       do ikx = 0,nkx-1
          do iky = 0,nky-1
@@ -1113,8 +1123,44 @@ module matsfunc_ops
                   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
 
                   ! dimer in x-direction FOR 1D MODEL , only take nonlocal parts
-                !  s_gw(1,2,:,ik,:) = simp(1,2,:,:)*( 0.0_kr + exp(+ci*kx) )
-                !  s_gw(2,1,:,ik,:) = simp(2,1,:,:)*( 0.0_kr + exp(-ci*kx) )
+               if (1==1) then
+                  s_gw(1,2,:,ik,:) = simp(1,2,:,:)*( 0.0_kr + exp(+ci*kx) )
+                  s_gw(2,1,:,ik,:) = simp(2,1,:,:)*( 0.0_kr + exp(-ci*kx) )
+              endif
+
+              if (1==0) then ! Dimer for GF reperiodization
+                 U(1,1) = 1/sqrt(2.0)
+                 U(2,2) = 1/sqrt(2.0)
+                 U(1,2) = -exp(+ci*kx/2) /sqrt(2.0)
+                 U(2,1) = +exp(-ci*kx/2) /sqrt(2.0)
+
+                 Ud(1,1) = 1/sqrt(2.0)
+                 Ud(2,2) = 1/sqrt(2.0)
+                 Ud(1,2) = +exp(+ci*kx/2) /sqrt(2.0)
+                 Ud(2,1) = -exp(-ci*kx/2) /sqrt(2.0)
+
+                 do n=1,nomega
+                  do s=1,nspin
+                    gtmp = gfk(s,ik,n,h_dft,v_xc,s_gw,s_gw_dc,simp,dft_hartree,dft_exchange,.false.)
+                    gunf = matmul( Ud, matmul(gtmp, U) )
+
+                    ! construct G0
+                    call get_inverse(gtmp,gtmp,norb)  ! G^-1
+                    gtmp = gtmp + simp(:,:,s,n)       ! G0^-1
+                    call get_inverse(gtmp,gtmp,norb)  ! G0
+                    g0unf = matmul( Ud, matmul(gtmp, U) )
+
+                    gtmp = (0.0_kr,0.0_kr)
+                    gtmp(1,1) = 1.0_kr/g0unf(1,1) - 1.0_kr/gunf(1,1)
+                    gtmp(2,2) = 1.0_kr/g0unf(2,2) - 1.0_kr/gunf(2,2)
+
+                    s_gw(:,:,s,ik,n) = matmul( U, matmul(gtmp, Ud) )
+
+                   enddo
+                 enddo
+
+                 sloc = sloc + s_gw(:,:,:,ik,:)/nkpts
+              endif
 
                   ! 3site in x-direction FOR 1D MODEL , only take nonlocal parts
                 !  s_gw(1,3,:,ik,:) = simp(1,2,:,:)*( 0.0_kr + exp(+ci*kx) )
@@ -1163,7 +1209,7 @@ module matsfunc_ops
                endif
 
                ! plaquette: We leave out the local part so s_gw is purely nonlocal
-               if (1==1) then
+               if (1==0) then
                   s_gw(1,2,:,ik,:) = simp(1,2,:,:)*( 0.0_kr + exp(+ci*kx)  )
                   s_gw(2,1,:,ik,:) = simp(2,1,:,:)*( 0.0_kr + exp(-ci*kx)  )
 
@@ -1186,7 +1232,13 @@ module matsfunc_ops
          enddo ! iky   
       enddo ! ikx
 
-      deallocate( stmp )
+!      write(*,*) "WARNING: WE ALSO REPLACE S_IMP BY THE LOCAL REPERIODIZED SIGMA !!!"
+!      simp = sloc
+!      do ik = 1,nkpts
+!         s_gw(:,:,:,ik,:) = s_gw(:,:,:,ik,:) - sloc
+!      enddo
+
+      deallocate( sloc )
 
    end subroutine reperiod_sigma
 

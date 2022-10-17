@@ -96,7 +96,7 @@ module anacont
      else
        wi = vn(maxn-2)
      endif
-     get_pade = 1.0_kr + pade_array(maxn,maxn)*( w - ci*wi )
+     get_pade = 1.0_kr + pade_array(maxn,maxn)*( w+0.001*ci - ci*wi )
 
      do n=maxn-2,1,-1
         if (fermionic) then
@@ -104,7 +104,7 @@ module anacont
         else
            wi = vn(n-1)
         endif
-        get_pade = 1.0_kr + pade_array(n+1,n+1)*( w - ci*wi )/get_pade
+        get_pade = 1.0_kr + pade_array(n+1,n+1)*( w+0.001*ci - ci*wi )/get_pade
      enddo
      get_pade = pade_array(1,1)/get_pade
 

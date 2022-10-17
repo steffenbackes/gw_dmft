@@ -195,7 +195,7 @@ module observables
             do s=1,nspin
                call init_pade( gf_tmp(m,m,s,:),nomega,.true.)
                do n=1,realnw
-                  cont_gf(m,s,n) = get_pade(a + dx*n)
+                  cont_gf(m,s,n) = get_pade(a + dx*n )
                enddo
             enddo
          enddo
