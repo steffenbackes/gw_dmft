@@ -497,7 +497,8 @@ module io_ops
       complex(kr),intent(inout) :: V_gw(:,:,:,:,:)       ! norb**2,norb**2,nspin,nkpts,nnu
       complex(kr),intent(inout) :: P_gw(:,:,:,:,:)       ! norb**2,norb**2,nspin,nkpts,nnu
 
-      integer              :: m1,m2,s,w,i,iounit=10
+      integer              :: m1,m2,s,w,i,iounit=10, inttmp(3)
+      logical              :: fileexists
       real(kr),allocatable :: tmp(:)             ! 3+gw_nspin*norb*norb
       real(kr),allocatable :: tmp2(:)            ! 1+2*gw_nspin*norb*norb
       real(kr),allocatable :: tmpprod1(:)        ! 1+gw_nspin*norb**2*norb**2
@@ -533,28 +534,67 @@ module io_ops
     !  ============================================================
     !  == Read the DFT Hamiltonian
     !  ============================================================
-      write(*,'(A)') ' Read the DFT Hamiltonian'
-      open(unit=iounit,file="gw_h_dft.dat",status="old")
-      read(iounit,*) ! comment line
+      write(*,'(A)') ' Read the DFT Hamiltonian...'
 
-      do iq=1,gw_nkpts
-         read(iounit,*) tmptmp,tmp  ! first number is just k index
-         gw_kvecs(iq,1) = tmp(1)
-         gw_kvecs(iq,2) = tmp(2)
-         gw_kvecs(iq,3) = tmp(3)
-      
-         do s=0,gw_nspin-1
-            do m2=0,norb-1
-               do m1=0,norb-1
-                  h_dft_q(m1+1,m2+1,s+1,iq) =      tmp(3 + 2*s*norb**2 + 2*m1*norb + 2*m2 +1)      &
-                                          &  +ci*( tmp(3 + 2*s*norb**2 + 2*m1*norb + 2*m2 +2) )
-               enddo !m2 loop        
-            enddo !m1 loop
-         enddo !s loop
-      enddo !iq loop
-      close(iounit)
-      if (gw_nspin==1) h_dft_q(:,:,2,:) = h_dft_q(:,:,1,:)  ! Just copy to other spin
-      h_dft_q = h_dft_q*HartreeToEV
+      INQUIRE(FILE="gw_h_dft.dat", EXIST=fileexists)
+
+      if ( fileexists ) then
+         write(*,'(A)') ' Found gw_h_dft.dat...'
+
+         open(unit=iounit,file="gw_h_dft.dat",status="old")
+         read(iounit,*) ! comment line
+   
+         do iq=1,gw_nkpts
+            read(iounit,*) tmptmp,tmp  ! first number is just k index
+            gw_kvecs(iq,1) = tmp(1)
+            gw_kvecs(iq,2) = tmp(2)
+            gw_kvecs(iq,3) = tmp(3)
+         
+            do s=0,gw_nspin-1
+               do m2=0,norb-1
+                  do m1=0,norb-1
+                     h_dft_q(m1+1,m2+1,s+1,iq) =      tmp(3 + 2*s*norb**2 + 2*m1*norb + 2*m2 +1)      &
+                                             &  +ci*( tmp(3 + 2*s*norb**2 + 2*m1*norb + 2*m2 +2) )
+                  enddo !m2 loop        
+               enddo !m1 loop
+            enddo !s loop
+         enddo !iq loop
+         close(iounit)
+         if (gw_nspin==1) h_dft_q(:,:,2,:) = h_dft_q(:,:,1,:)  ! Just copy to other spin
+         h_dft_q = h_dft_q*HartreeToEV
+
+      else ! try wannier .hk file
+         INQUIRE(FILE="wannier.hk", EXIST=fileexists)
+
+         if ( fileexists ) then
+            write(*,'(A)') ' Found wannier.hk...'
+            open(unit=iounit,file="wannier.hk",status="old")
+            read(iounit,*) inttmp
+
+            if ( inttmp(1)/=gw_nkpts ) stop 'ERROR: Nkpts in wannier.hk is different from gw_input.dat !' 
+            if ( inttmp(2)/=norb ) stop 'ERROR: Norb in wannier.hk is different from gw_input.dat !' 
+   
+            do iq=1,gw_nkpts
+               read(iounit,*) tmp  ! 3 k-coords, them Hk matrix
+               gw_kvecs(iq,1) = tmp(1)
+               gw_kvecs(iq,2) = tmp(2)
+               gw_kvecs(iq,3) = tmp(3) 
+               do s=0,gw_nspin-1
+                  do m2=0,norb-1
+                     do m1=0,norb-1
+                        h_dft_q(m1+1,m2+1,s+1,iq) =      tmp(3 + 2*s*norb**2 + 2*m1*norb + 2*m2 +1)      &
+                                                &  +ci*( tmp(3 + 2*s*norb**2 + 2*m1*norb + 2*m2 +2) )
+                     enddo !m2 loop        
+                  enddo !m1 loop
+               enddo !s loop
+            enddo !iq loop
+            close(iounit)
+            if (gw_nspin==1) h_dft_q(:,:,2,:) = h_dft_q(:,:,1,:)  ! Just copy to other spin
+
+         else
+            stop 'ERROR: Found neither gw_h_dft.dat nor wannier.hk input file !'
+         endif
+      endif
 
 !  ==================================================================================
 !  == Only if useSigK==1 we read the V_XC, GW-Selfenergy
