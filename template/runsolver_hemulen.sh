@@ -21,7 +21,7 @@ echo 'Running runsolver.sh, sleep 5'
 sleep 5
 
 ############################################################
-ncpus=`wc -l $PBS_NODEFILE`
+ncpus=`wc -l < $PBS_NODEFILE`
 mpirun -np $ncpus /opt/CTQMC/CT-HYB/bin/hybmat input.ini > out.solver 2>&1
 #mpirun -np 10 ctint_real input.ini > out.solver 2>&1
 #mpirun -np 48 alps_cthyb alps_parm.dat > out.solver 2>&1
