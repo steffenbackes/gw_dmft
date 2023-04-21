@@ -159,35 +159,38 @@ write(*,'(A)') '!! WARNING !!! All the other GW routines work on the full norb !
 
       ! Now add a long-range interaction (if needed)
       if ( size(V(1,1,1,:,1))==nkpts ) then
-         do ikx=0,nkx-1
-         do iky=0,nky-1
-         do ikz=0,nkz-1
-            kx = ikx*2*pi/nkx
-            ky = iky*2*pi/nky
-            kz = ikz*2*pi/nkz
-            ik = ikx*nky*nkz + iky*nkz + ikz + 1
-   
-               do i=1,norb_dmft
-                  do j=1,norb_dmft
-                     m1 = dmftOrbsIndex(i)     
-                     m2 = dmftOrbsIndex(j)
-                     a = (m1-1)*norb+m1
-                     b = (m2-1)*norb+m2
-   
-                     !V(a,b,:,ik,:) = V(a,b,:,ik,:) + 2*Unninput*( cos(kx)+cos(ky)+0*cos(kz) )
-                     do x=-dist_interaction,dist_interaction
-                        do y=-dist_interaction,dist_interaction
-                           dist = sqrt(1.0*x*x+y*y)
-                           if ( ( x .ne. 0 .or. y .ne. 0) .and. dist .le. dist_interaction ) then
-                              V(a,b,:,ik,:) = V(a,b,:,ik,:) + Unninput * exp(ci*(kx*x + ky*y)) / dist
-                           endif
-                        enddo
-                     enddo
-                  enddo     
-               enddo
-         enddo
-         enddo
-         enddo
+         do x=-dist_interaction,dist_interaction
+            do y=-dist_interaction,dist_interaction
+               dist = sqrt(1.0*x*x+y*y)
+               if ( ( x .ne. 0 .or. y .ne. 0) .and. dist .le. dist_interaction ) then
+                  write(*,'(A,F6.3,A,I3,A,I3,A)') 'Adding interaction V=',Unninput/dist,' for site at (',x,',',y,')'
+
+                  do ikx=0,nkx-1
+                  do iky=0,nky-1
+                  do ikz=0,nkz-1
+                     kx = ikx*2*pi/nkx
+                     ky = iky*2*pi/nky
+                     kz = ikz*2*pi/nkz
+                     ik = ikx*nky*nkz + iky*nkz + ikz + 1
+            
+                     do i=1,norb_dmft
+                        do j=1,norb_dmft
+                           m1 = dmftOrbsIndex(i)     
+                           m2 = dmftOrbsIndex(j)
+                           a = (m1-1)*norb+m1
+                           b = (m2-1)*norb+m2
+         
+                           !V(a,b,:,ik,:) = V(a,b,:,ik,:) + 2*Unninput*( cos(kx)+cos(ky)+0*cos(kz) )
+                           V(a,b,:,ik,:) = V(a,b,:,ik,:) + Unninput * exp(ci*(kx*x + ky*y)) / dist
+                        enddo ! j orb
+                     enddo ! i orb
+                  enddo ! kz    
+                  enddo ! ky
+                  enddo ! kx
+
+               endif ! dist < cutoff
+            enddo ! y
+         enddo ! x
       endif
 
 !      endif ! usePolK

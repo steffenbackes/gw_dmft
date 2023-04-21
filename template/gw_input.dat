@@ -3,5 +3,5 @@
     22  3000    # Number of imag. freq.
     3000        # number of bosonic frequencies for W,P
    512     8     8     8    # nr. of k-points, nkx, nky, nkz
-  0.10884400E+04    # Beta (inv.Temp.)
+  0.108845538E+04    # Beta (inv.Temp.)
   0.31437639E+00    # Chemical potential

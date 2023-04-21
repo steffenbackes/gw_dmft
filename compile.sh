@@ -3,7 +3,7 @@ rm -f *.o
 rm -f *.mod
 
 OPT="-funroll-loops -O3"
-FC=gfortran
+FC=ifort
 
 # OPT="-g -fbacktrace -ffpe-trap=invalid,zero,overflow,underflow"
 echo "Compile constants.f90..."
@@ -31,6 +31,7 @@ $FC $OPT -c main.f90
 
 echo "Linking main executable..."
 $FC constants.o params.o mathfunc.o fourier_interpolation.o matsfunc_ops.o gw.o anacont.o io_ops.o solver.o observables.o main.o -o gw_dmft -llapack
+#$FC constants.o params.o mathfunc.o fourier_interpolation.o matsfunc_ops.o gw.o anacont.o io_ops.o solver.o observables.o main.o -o gw_dmft_unfold2 -llapack
 
 rm -f *.o
 rm -f *.mod

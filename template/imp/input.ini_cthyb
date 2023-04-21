@@ -15,6 +15,10 @@ model.hopping_matrix_input_file="mu_matrix_solver.dat"
 model.delta_input_file="delta0_matrix_solver.dat"
 verbose=0
 
+# measurement.nn_corr.def="nn.def"
+# measurement.nn_corr.n_tau=2
+# measurement.nn_corr.n_def=5
+
 #update.swap_vector="1 0 3 2 5 4  1 2 3 4 5 0"
 
 

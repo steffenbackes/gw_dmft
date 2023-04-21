@@ -10,6 +10,8 @@ cp umatrix.dat               imp/
 cp Kt.dat                    imp/
 rm Swl.dat
 rm Gwl.dat
+rm nnt.dat
+rm nnw.dat
 cd imp
 sed -i "s/seed.*/seed=`shuf -i 1-1000 -n 1`/" input.ini
 sed -i "s/SEED.*/SEED = `shuf -i 1-1000 -n 1`/" alps_parm.dat
@@ -34,4 +36,6 @@ python getoutput_seg.py
 
 cd ..
 cp imp/Gwl.dat ./
+cp imp/nnt.dat ./
+cp imp/nnw.dat ./
 sleep 5
