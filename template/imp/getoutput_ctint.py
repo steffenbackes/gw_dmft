@@ -18,11 +18,11 @@ data = inf.readline().replace(',',' ').split()
 nw = int(data[4])
 norb = int(data[5])
 
-print 'Getoutput:'
-print 'Found beta=',beta
-print 'Found U=',U
-print 'Found nw=',nw
-print 'Found norb=',norb
+print( 'Getoutput:' )
+print( 'Found beta=',beta )
+print( 'Found U=',U )
+print( 'Found nw=',nw )
+print( 'Found norb=',norb )
 inf.readline()
 
 # read gbath
@@ -30,17 +30,21 @@ gbath = np.zeros((norb,norb,2,nw),dtype=complex)
 inf2 = open('g0_solver.dat','r')
 for n in range(nw):
    data = [float(x) for x in inf2.readline().split()]
+   norb_gbath = int( np.rint( np.sqrt( (len(data)-1)/4 ) ) )
+
+   # here we assume that the dmft atom in Gbath is the first one
+
    for s in range(2):
-   	for m1 in range(norb):
-	      for m2 in range(norb):
-				gbath[m1,m2,s,n] = data[1 + s*2*norb**2 + m1*2*norb + m2*2 + 0] + data[1 + s*2*norb**2 + m1*2*norb + m2*2 + 1]*1.0j
+      for m1 in range(norb):
+         for m2 in range(norb):
+            gbath[m1,m2,s,n] = data[1 + s*2*norb_gbath**2 + m1*2*norb_gbath + m2*2 + 0] + data[1 + s*2*norb_gbath**2 + m1*2*norb_gbath + m2*2 + 1]*1.0j
 inf2.close()
 ###########
 
 # we have to shift the local mu level for ctint
 for n in range(nw):
    for s in range(2):
-		gbath[:,:,s,n] = np.linalg.inv( np.linalg.inv( gbath[:,:,s,n] ) - 0.5*U*np.identity(norb) )
+      gbath[:,:,s,n] = np.linalg.inv( np.linalg.inv( gbath[:,:,s,n] ) - 0.5*U*np.identity(norb) )
 
 outf = open('Gwl.dat','w')
 for n in range(nw):
@@ -72,7 +76,7 @@ for i in range(3):
 
 data = inf.readline().replace(',',' ').split()
 nlegendre = int(data[4])
-print 'Found nlegendre=',nlegendre
+print( 'Found nlegendre=',nlegendre )
 
 legendre = np.zeros((nlegendre,norb,norb,2))
 inf.readline()

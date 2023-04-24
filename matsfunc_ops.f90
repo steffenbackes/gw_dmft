@@ -402,16 +402,17 @@ module matsfunc_ops
       do w=1,nomega
          do s=1,nspin
 
-   ! Take only the submatrix of the correlated orbitals
+     ! Remove all inter-atom terms   ! Take only the submatrix of the correlated orbitals
             gloc_tmp =  (0.0_kr,0.0_kr)
             simp_tmp =  (0.0_kr,0.0_kr)
 
-            ! use failsafe identity matrix as default
+            ! use failsafe only the diagonals as default
             do m1=1,norb
-               gloc_tmp(m1,m1) = 1.0_kr
+               gloc_tmp(m1,m1) = gloc(m1,m1,s,w)
+               simp_tmp(m1,m1) = simp(m1,m1,s,w)
             enddo
 
-            !only the dmft orbitals on the correlated atoms, remove inter-atom terms, keep only intra-atom terms
+            ! copy only remaining intra-atom terms of the dmft orbitals
             do a=0,noEquivAtoms-1
                do m1=0,norbPerAtom-1
                   do m2=0,norbPerAtom-1
@@ -517,7 +518,7 @@ module matsfunc_ops
       complex(kr),allocatable :: Geps_proj(:,:)    ! norb,norb
       real(kr)                :: mu_loc_proj(norb,norb)
 
-      integer(ki)            :: w,s,i,j,k,m1,m2,mm1,mm2
+      integer(ki)            :: w,s,i,j,k,m1,m2,mm1,mm2, a
 
       allocate( g_tmp(norb,norb) )
       allocate( unity(norb,norb) )
@@ -530,7 +531,14 @@ module matsfunc_ops
       allocate( Geps_proj(norb,norb) )
       g_tmp =  (0.0_kr,0.0_kr)
       gbath =  (0.0_kr,0.0_kr)
-      mu_loc = (0.0_kr)      
+      mu_loc = (0.0_kr)     
+      epsGeps =  (0.0_kr,0.0_kr)
+      epsG =  (0.0_kr,0.0_kr)
+      Geps =  (0.0_kr,0.0_kr)
+      Glocinv =  (0.0_kr,0.0_kr)
+      epsGeps_proj =  (0.0_kr,0.0_kr)
+      epsG_proj =  (0.0_kr,0.0_kr)
+      Geps_proj =  (0.0_kr,0.0_kr)
 
 !  ====================================================
 !  == Create identity matrix for use with iw_n + mu ==
@@ -568,14 +576,33 @@ module matsfunc_ops
       ! calculate Glocinv !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       do s=1,nspin
          do w=1,nomega
-            g_tmp = unity
-            do m1=1,norbPerAtom
-               do m2=1,norbPerAtom
-                  mm1 = dmftOrbsIndex(m1)
-                  mm2 = dmftOrbsIndex(m2)
-                  g_tmp(mm1,mm2) = gloc(mm1,mm2,s,w)
-               enddo ! m2
-            enddo ! m1
+!            g_tmp = unity
+            g_tmp = (0.0_kr,0.0_kr)
+
+            !use failsafe only the diagonals as default
+            do m1=1,norb
+               g_tmp(m1,m1) = gloc(m1,m1,s,w)
+            enddo
+
+            ! copy only remaining intra-atom terms of the dmft orbitals
+            do a=0,noEquivAtoms-1
+               do m1=0,norbPerAtom-1
+                  do m2=0,norbPerAtom-1
+                     mm1 = dmftOrbsIndex( a*norbPerAtom + m1 +1)
+                     mm2 = dmftOrbsIndex( a*norbPerAtom + m2 +1)
+                     g_tmp(mm1,mm2) = gloc(mm1,mm2,s,w)
+                 enddo ! m2
+               enddo ! m1
+            enddo ! a
+
+            ! This is missing the other equivalent atoms
+            !do m1=1,norbPerAtom
+            !   do m2=1,norbPerAtom
+            !      mm1 = dmftOrbsIndex(m1)
+            !      mm2 = dmftOrbsIndex(m2)
+            !      g_tmp(mm1,mm2) = gloc(mm1,mm2,s,w)
+            !   enddo ! m2
+            !enddo ! m1
  
             call ZGETRF(norb, norb, g_tmp, norb, ipiv, info_lpck)
             if (info_lpck /= 0) then
@@ -600,6 +627,7 @@ module matsfunc_ops
             epsGeps = (0.0_kr,0.0_kr)
             epsG = (0.0_kr,0.0_kr)
             Geps = (0.0_kr,0.0_kr)
+            g_tmp = (0.0_kr,0.0_kr)
 
             do k=1,nkpts
                g_tmp = gfk(s,k,w,h_dft,v_xc,s_gw,s_gw_dc,simp,dft_hartree,dft_exchange,onlyDFT)
@@ -647,21 +675,45 @@ module matsfunc_ops
 
             enddo ! k
 
+            !use failsafe only the diagonals as default
+            do m1=1,norb
+               epsGeps_proj(m1,m1) = epsGeps(m1,m1)
+               Geps_proj(   m1,m1) = Geps(   m1,m1) 
+               epsG_proj(   m1,m1) = epsG(   m1,m1)
+               mu_loc_proj( m1,m1) = mu_loc( m1,m1,s)
+            enddo
+
+            ! copy only remaining intra-atom terms of the dmft orbitals
+            do a=0,noEquivAtoms-1
+               do m1=0,norbPerAtom-1
+                  do m2=0,norbPerAtom-1
+                     mm1 = dmftOrbsIndex( a*norbPerAtom + m1 +1)
+                     mm2 = dmftOrbsIndex( a*norbPerAtom + m2 +1)
+
+                     epsGeps_proj(mm1,mm2) = epsGeps(mm1,mm2)
+                     Geps_proj(mm1,mm2) = Geps(mm1,mm2) 
+                     epsG_proj(mm1,mm2) = epsG(mm1,mm2)
+                     mu_loc_proj(mm1,mm2) = mu_loc(mm1,mm2,s)
+                 enddo ! m2
+               enddo ! m1
+            enddo ! a
+
+            ! This is missing the other equivalent atoms
             ! Now project on the first equiv. atom and DMFT orbitals
-            epsGeps_proj = unity
-            Geps_proj = unity
-            epsG_proj = unity
-            mu_loc_proj = unity
-            do m1=1,norbPerAtom
-               do m2=1,norbPerAtom
-                  mm1 = dmftOrbsIndex(m1)
-                  mm2 = dmftOrbsIndex(m2)
-                  epsGeps_proj(mm1,mm2) = epsGeps(mm1,mm2)
-                  Geps_proj(mm1,mm2) = Geps(mm1,mm2) 
-                  epsG_proj(mm1,mm2) = epsG(mm1,mm2)
-                  mu_loc_proj(mm1,mm2) = mu_loc(mm1,mm2,s)
-               enddo ! m2
-            enddo ! m1
+!            epsGeps_proj = unity
+!            Geps_proj = unity
+!            epsG_proj = unity
+!            mu_loc_proj = unity
+!            do m1=1,norbPerAtom
+!               do m2=1,norbPerAtom
+!                  mm1 = dmftOrbsIndex(m1)
+!                  mm2 = dmftOrbsIndex(m2)
+!                  epsGeps_proj(mm1,mm2) = epsGeps(mm1,mm2)
+!                  Geps_proj(mm1,mm2) = Geps(mm1,mm2) 
+!                  epsG_proj(mm1,mm2) = epsG(mm1,mm2)
+!                  mu_loc_proj(mm1,mm2) = mu_loc(mm1,mm2,s)
+!               enddo ! m2
+!            enddo ! m1
 
             ! now we can build Gbath^-1
             g_tmp = ci*wn(w-1)*unity + mu_loc_proj - ( epsGeps_proj - matmul(matmul(epsG_proj,Glocinv(:,:,s,w)),Geps_proj) )
@@ -927,12 +979,19 @@ module matsfunc_ops
             enddo
 
             ! Fix tails
-            !write(*,*) coeffs_gb(1,1,2)
-            !write(*,*) coeffs_gi(1,1,2)
+            if (w==1) then
+               write(*,*) 'Coeffs for Gbath in Dyson Eq:', coeffs_gb(1,1,2)
+               write(*,*) 'Coeffs for Gimp in Dyson Eq',coeffs_gi(1,1,2)
+            endif
+
             do m=1,norbPerAtom
                gbath_tmp(m,m) = gbath_tmp(m,m)/coeffs_gb(m,s,2)
                gimp_tmp(m,m)  = gimp_tmp(m,m) /coeffs_gi(m,s,2)
             enddo
+            !if (w==1) then
+            !   write(*,*) 'Gbath = ',gbath_tmp
+            !   write(*,*) 'Gimp = ',gimp_tmp
+            !endif
 
             ! Then invert with LAPACK
             call ZGETRF(norbPerAtom, norbPerAtom, gbath_tmp, norbPerAtom, ipiv, info_lpck)
