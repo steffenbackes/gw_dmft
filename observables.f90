@@ -21,6 +21,11 @@ module observables
        real(kr)                :: dx,              a=-20.0_kr, b=10.0_kr
        complex(kr),allocatable :: cont_gf(:,:,:)
 
+       if ( size(gf(1,1,1,:)) < nomega ) then
+         return
+       endif
+
+
        allocate( cont_gf(norb,nspin,realnw) )
        dx = (b-a)/realnw
 
