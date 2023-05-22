@@ -11,22 +11,23 @@ for line in inf:
 	dataG0 = [float(x) for x in inf2.readline().split()]
 
 	w = dataS[0]
-	norb = (len(dataS)-1)/4
+	norb = int( (len(dataS)-1)/4 )
 
 	outf.write( str( w ) + '\t')
 
 	for s in range(2):
+		g0 = np.zeros((norb,norb),dtype=complex)
+		sig = np.zeros((norb,norb),dtype=complex)
+		for m1 in range(norb):
+			sig[m1,m1] = dataS[1+m1*4+2*s+0] + dataS[1+m1*4+2*s+1]*1.0j
+			for m2 in range(norb):
+				g0[m1,m2] = dataG0[1+s*(norb**2)*2+m2*norb*2+m1*2+0] + dataG0[1+s*(norb**2)*2+m2*norb*2+m1*2+1]*1.0j
+
+		g = np.linalg.inv( np.linalg.inv(g0) - sig )
+
 		for m1 in range(norb):
 			for m2 in range(norb):
-				if (m1==m2):
-					sig = dataS[1+m1*4+2*s+0] + dataS[1+m1*4+2*s+1]*1.0j
-					g0 = dataG0[1] + dataG0[2]*1.0j
-					g = 1.0/( 1.0/g0 - sig)
-
-					outf.write( str(g.real) + '\t' + str(g.imag) + '\t' )
-				else:
-					outf.write( str(0.0) + '\t' + str(0.0) + '\t' )
-
+				outf.write( str(g[m1,m2].real) + '\t' + str(g[m1,m2].imag) + '\t' )
 	outf.write('\n')
 outf.close()
 
