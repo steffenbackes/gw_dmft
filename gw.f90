@@ -132,25 +132,51 @@ write(*,'(A)') '!! WARNING !!! All the other GW routines work on the full norb !
                     V(a,b,:,:,:) = U0*U0scaleFac
      
                     do j=1,norb_dmft
-                       ! U' term
-                       m2 = dmftOrbsIndex(j)     
-                       a = (m1-1)*norb+m1          
-                       b = (m2-1)*norb+m2          
-                       V(a,b,:,:,:) = (U0-2*Jmat(i,j))*U0scaleFac
-     
-                       ! first J term iijj
-                       a = (m1-1)*norb+m2          
-                       b = (m1-1)*norb+m2          
-                       V(a,b,:,:,:) = Jmat(i,j)
-                       ! second J term ijji
-                       a = (m1-1)*norb+m2          
-                       b = (m2-1)*norb+m1          
-                       V(a,b,:,:,:) = Jmat(i,j)
+                       if ( i/=j) then
+                          ! U' term
+                          m2 = dmftOrbsIndex(j)     
+                          a = (m1-1)*norb+m1          
+                          b = (m2-1)*norb+m2          
+                          V(a,b,:,:,:) = (U0-2*Jmat(i,j))*U0scaleFac
+        
+                          ! first J term iijj
+                          a = (m1-1)*norb+m2          
+                          b = (m1-1)*norb+m2          
+                          V(a,b,:,:,:) = Jmat(i,j)
+                          ! second J term ijji
+                          a = (m1-1)*norb+m2          
+                          b = (m2-1)*norb+m1          
+                          V(a,b,:,:,:) = Jmat(i,j)
+                     endif
+                  enddo
                enddo
-            enddo
+
+               write(*,'(A)') 'Slater 5-orb Umat:'
+               do i=1,norb_dmft
+                  do j=1,norb_dmft
+                     m1 = dmftOrbsIndex(i)     
+                     m2 = dmftOrbsIndex(j)     
+                     a = (m1-1)*norb+m1          
+                     b = (m2-1)*norb+m2          
+                     write(*,'(F9.5, A)',advance='no') real(V(a,b,1,1,1)), ' '
+                  enddo
+                  write(*,'(A)') ' '
+               enddo
+               write(*,'(A)') 'Slater 5-orb Jmat:'
+               do i=1,norb_dmft
+                  do j=1,norb_dmft
+                     m1 = dmftOrbsIndex(i)     
+                     m2 = dmftOrbsIndex(j)     
+                     a = (m1-1)*norb+m2          
+                     b = (m1-1)*norb+m2          
+                     write(*,'(F9.5, A)',advance='no') real(V(a,b,1,1,1)), ' '
+                  enddo
+                  write(*,'(A)') ' '
+               enddo
+               write(*,'(A)') ' '
 
              else
-                write(*,*) 'ERROR: Interaction matrix of #orbitals != 1,3,5 for each atom is not supported!'
+                write(*,'(A)') 'ERROR: Interaction matrix of #orbitals != 1,3,5 for each atom is not supported!'
                 stop
              endif ! norb_dmft
          endif ! read Umatrix
