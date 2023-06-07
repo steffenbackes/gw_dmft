@@ -516,12 +516,13 @@ module matsfunc_ops
       complex(kr),allocatable :: epsGeps_proj(:,:) ! norb,norb
       complex(kr),allocatable :: epsG_proj(:,:)    ! norb,norb
       complex(kr),allocatable :: Geps_proj(:,:)    ! norb,norb
-      real(kr)                :: mu_loc_proj(norb,norb)
+      real(kr),allocatable    :: mu_loc_proj(:,:)
 
       integer(ki)            :: w,s,i,j,k,m1,m2,mm1,mm2, a
 
       allocate( g_tmp(norb,norb) )
       allocate( unity(norb,norb) )
+      allocate( mu_loc_proj(norb,norb) )
       allocate( epsGeps(norb,norb) )
       allocate( epsG(norb,norb) )
       allocate( Geps(norb,norb) )
@@ -532,6 +533,7 @@ module matsfunc_ops
       g_tmp =  (0.0_kr,0.0_kr)
       gbath =  (0.0_kr,0.0_kr)
       mu_loc = (0.0_kr)     
+      mu_loc_proj = (0.0_kr)     
       epsGeps =  (0.0_kr,0.0_kr)
       epsG =  (0.0_kr,0.0_kr)
       Geps =  (0.0_kr,0.0_kr)
@@ -594,6 +596,7 @@ module matsfunc_ops
                  enddo ! m2
                enddo ! m1
             enddo ! a
+
 
             ! This is missing the other equivalent atoms
             !do m1=1,norbPerAtom
@@ -675,6 +678,10 @@ module matsfunc_ops
 
             enddo ! k
 
+            epsGeps_proj = (0.0_kr,0.0_kr)
+            Geps_proj    = (0.0_kr,0.0_kr)
+            epsG_proj    = (0.0_kr,0.0_kr)
+            mu_loc_proj  = (0.0_kr,0.0_kr)
             !use failsafe only the diagonals as default
             do m1=1,norb
                epsGeps_proj(m1,m1) = epsGeps(m1,m1)
@@ -697,6 +704,7 @@ module matsfunc_ops
                  enddo ! m2
                enddo ! m1
             enddo ! a
+
 
             ! This is missing the other equivalent atoms
             ! Now project on the first equiv. atom and DMFT orbitals
@@ -748,6 +756,7 @@ module matsfunc_ops
 
       deallocate( g_tmp )
       deallocate( unity )
+      deallocate( mu_loc_proj )
       deallocate( epsGeps )
       deallocate( epsG )
       deallocate( Geps )
