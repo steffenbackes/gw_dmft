@@ -1561,8 +1561,8 @@ module matsfunc_ops
          call progress(t,ntau+1)
 
          tau = (t-1)*beta/ntau
-         write(iounit,'((ES23.16),(4X))',advance='no') tau
-         write(iounit2,'((ES23.16),(4X))',advance='no') tau
+         write(iounit,'((ES23.15E3),(4X))',advance='no') tau
+         write(iounit2,'((ES23.15E3),(4X))',advance='no') tau
          do m1=1,norbPerAtom
             do m2=1,norbPerAtom
                do s=1,nspin
@@ -1597,7 +1597,7 @@ module matsfunc_ops
                      ! keep it causal when there is Monte Carlo noise
                      if (m1==m2) then
                          if (real(delta)>0.0_kr) delta = 0.0_kr
-                         write(iounit,'(ES23.16,4X)',advance='no') real(delta)  ! used for SEGMENT solver
+                         write(iounit,'(ES23.15E3,4X)',advance='no') real(delta)  ! used for SEGMENT solver
                      endif
 
                   else ! m1!=m2
@@ -1610,7 +1610,7 @@ module matsfunc_ops
                   endif ! m1==m2
    
                   ! general matrix format for plotting
-                  write(iounit2,'(2(ES23.16,4X))',advance='no') real(delta),aimag(delta)
+                  write(iounit2,'(2(ES23.15E3,4X))',advance='no') real(delta),aimag(delta)
 
                   ! save for later
                   deltam(m1,m2,s) = delta
@@ -1668,8 +1668,8 @@ module matsfunc_ops
          call progress(t,ntau+1)
       
          tau = (t-1)*beta/ntau
-         write(iounit,'((ES23.16),(4X))',advance='no') tau
-         write(iounit2,'((ES23.16),(4X))',advance='no') tau
+         write(iounit,'((ES23.15E3),(4X))',advance='no') tau
+         write(iounit2,'((ES23.15E3),(4X))',advance='no') tau
          do m1=1,ndim
             do m2=1,ndim
                do s=1,nspin
@@ -1703,7 +1703,7 @@ module matsfunc_ops
                      ! keep it causal when there is Monte Carlo noise
                      if (m1==m2) then
                          if (real(delta)>0.0_kr) delta = 0.0_kr
-                         write(iounit,'(ES23.16,4X)',advance='no') real(delta)  ! used for SEGMENT solver
+                         write(iounit,'(ES23.15E3,4X)',advance='no') real(delta)  ! used for SEGMENT solver
                      endif
                   
                   else ! m1!=m2
@@ -1716,7 +1716,7 @@ module matsfunc_ops
                   endif
 
                   ! general matrix format for plotting
-                  write(iounit2,'(2(ES23.16,4X))',advance='no') real(delta),aimag(delta)
+                  write(iounit2,'(2(ES23.15E3,4X))',advance='no') real(delta),aimag(delta)
 
                   ! save for later
                   deltam(m1,m2,s,t) = delta
@@ -1799,8 +1799,8 @@ module matsfunc_ops
          call progress(t,ntau+1)
       
          tau = (t-1)*beta/ntau
-         write(iounit,'((ES23.16),(4X))',advance='no') tau
-         write(iounit2,'((ES23.16),(4X))',advance='no') tau
+         write(iounit,'((ES23.15E3),(4X))',advance='no') tau
+         write(iounit2,'((ES23.15E3),(4X))',advance='no') tau
          do m1=1,norbPerAtom
             do m2=1,norbPerAtom
                do s=1,nspin
@@ -1834,7 +1834,7 @@ module matsfunc_ops
                      ! keep it causal when there is Monte Carlo noise
                      if (m1==m2) then
                          if (real(delta)>0.0_kr) delta = 0.0_kr
-                         write(iounit,'(ES23.16,4X)',advance='no') real(delta)  ! used for SEGMENT solver
+                         write(iounit,'(ES23.15E3,4X)',advance='no') real(delta)  ! used for SEGMENT solver
                      endif
                   
                   else ! m1!=m2
@@ -1847,7 +1847,7 @@ module matsfunc_ops
                   endif
 
                   ! general matrix format for plotting
-                  write(iounit2,'(2(ES23.16,4X))',advance='no') real(delta),aimag(delta)
+                  write(iounit2,'(2(ES23.15E3,4X))',advance='no') real(delta),aimag(delta)
 
                   ! save for later
                   deltam(m1,m2,s,t) = delta

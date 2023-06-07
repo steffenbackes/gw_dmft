@@ -20,7 +20,7 @@ for line in inf:
 		print( "norbDMFT = ",norbDmft )
 	ii+=1
    
-	outf.write( str( w ) + '\t')
+	outf.write( "{:.7e}".format( w ) + '\t')
 
 	for s in range(2):
 		g0 = np.zeros((norb,norb),dtype=complex)
@@ -34,7 +34,7 @@ for line in inf:
 
 		for m1 in range(norb):
 			for m2 in range(norb):
-				outf.write( str(g[m1,m2].real) + '\t' + str(g[m1,m2].imag) + '\t' )
+				outf.write( "{:.7e}".format(g[m1,m2].real) + '\t' + "{:.7e}".format(g[m1,m2].imag) + '\t' )
 	outf.write('\n')
 outf.close()
 

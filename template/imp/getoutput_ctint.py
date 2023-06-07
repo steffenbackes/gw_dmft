@@ -48,7 +48,7 @@ for n in range(nw):
 
 outf = open('Gwl.dat','w')
 for n in range(nw):
-	outf.write( str( (2*n+1)*np.pi/beta ) + '\t')
+	outf.write( "{:.7e}".format( (2*n+1)*np.pi/beta ) + '\t')
 
 	SigG = np.zeros((norb,norb,2),dtype=complex)
 
@@ -63,7 +63,7 @@ for n in range(nw):
 
 		for m1 in range(norb):
 			for m2 in range(norb):
-				outf.write(str(gimp[m1,m2].real) + '\t' + str(gimp[m1,m2].imag) + '\t') 
+				outf.write("{:.7e}".format(gimp[m1,m2].real) + '\t' + "{:.7e}".format(gimp[m1,m2].imag) + '\t') 
 
 	outf.write('\n')
 outf.close()
@@ -95,7 +95,7 @@ for l in range(nlegendre):
 	for m1 in range(norb):
 		for m2 in range(norb):
 			for s1 in range(2):		
-				outf.write( str(legendre[l,m1,m2,s1]) + '\t' )
+				outf.write( "{:.7e}".format(legendre[l,m1,m2,s1]) + '\t' )
 	outf.write( '\n' )
 
 outf.close()

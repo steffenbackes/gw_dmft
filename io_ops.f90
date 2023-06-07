@@ -1281,10 +1281,10 @@ module io_ops
       open(unit=iounit,file=filename,status="unknown")
     !  write(iounit,*) '# wn: orbital runs first, then spin'
       do w=1,size(func(1,1,:))
-         write(iounit,'((ES23.16),(4X))',advance='no') wn(w-1)
+         write(iounit,'((ES23.15E3),(4X))',advance='no') wn(w-1)
          do s=1,nspin
             do m=1,size(func(:,s,w))
-               write(iounit,'(2(ES23.16,2X),(4X))',advance='no')  & 
+               write(iounit,'(2(ES23.15E3,2X),(4X))',advance='no')  & 
                                  & real(func(m,s,w)), aimag(func(m,s,w))
             enddo
          enddo
@@ -1309,10 +1309,10 @@ module io_ops
       open(unit=iounit,file=filename,status="unknown")
     !  write(iounit,*) '# wn: orbital runs first, then spin'
       do w=1,size(func(1,1,1,:))
-         write(iounit,'((ES23.16),(4X))',advance='no') wn(w-1)
+         write(iounit,'((ES23.15E3),(4X))',advance='no') wn(w-1)
          do s=1,nspin
             do m=1,size(func(:,1,s,w))
-               write(iounit,'(2(ES23.16,2X),(4X))',advance='no')  & 
+               write(iounit,'(2(ES23.15E3,2X),(4X))',advance='no')  & 
                                  & real(func(m,m,s,w)), aimag(func(m,m,s,w))
             enddo
          enddo
@@ -1334,13 +1334,13 @@ module io_ops
       open(unit=iounit,file=filename,status="unknown")
     !  write(iounit,*) '# wn: orbital runs first, then spin'
       do w=1,size(func(1,1,1,:))
-         write(iounit,'((ES23.16),(4X))',advance='no') wn(w-1)
+         write(iounit,'((ES23.15E3),(4X))',advance='no') wn(w-1)
          do s=1,nspin
             do m1=1,size(func(:,1,s,w))
                do m2=1,size(func(1,:,s,w))
-                  write(iounit,'(2(ES23.16,2X),(4X))',advance='no')  & 
+                  write(iounit,'(2(ES23.15E3,2X),(4X))',advance='no')  & 
                                  & real(func(m1,m2,s,w)), aimag(func(m1,m2,s,w))
-                  !write(iounit,'(1(ES23.16,2X),(4X))',advance='no')  & 
+                  !write(iounit,'(1(ES23.15E3,2X),(4X))',advance='no')  & 
                   !               & abs(func(m1,m2,s,w))
                enddo
             enddo
@@ -1363,13 +1363,13 @@ module io_ops
       open(unit=iounit,file=filename,status="unknown")
     !  write(iounit,*) '# wn: orbital runs first, then spin'
       do w=1,size(func(1,1,1,:))
-         write(iounit,'((ES23.16),(4X))',advance='no') vn(w-1)
+         write(iounit,'((ES23.15E3),(4X))',advance='no') vn(w-1)
          do s=1,nspin
             do m1=1,size(func(:,1,s,w))
                do m2=1,size(func(1,:,s,w))
-                  write(iounit,'(2(ES23.16,2X),(4X))',advance='no')  & 
+                  write(iounit,'(2(ES23.15E3,2X),(4X))',advance='no')  & 
                                  & real(func(m1,m2,s,w)), aimag(func(m1,m2,s,w))
-                  !write(iounit,'(1(ES23.16,2X),(4X))',advance='no')  & 
+                  !write(iounit,'(1(ES23.15E3,2X),(4X))',advance='no')  & 
                   !               & abs(func(m1,m2,s,w))
                enddo
             enddo
@@ -1500,15 +1500,15 @@ module io_ops
       open(unit=iounit1,file="s_gw_loc_minus_dc.dat",status="unknown")
       open(unit=iounit2,file="s_loc.dat",status="unknown")
       do w=1,size(simp(1,1,1,:))
-         write(iounit1,'((ES23.16),(4X))',advance='no') wn(w-1)
-         write(iounit2,'((ES23.16),(4X))',advance='no') wn(w-1)
+         write(iounit1,'((ES23.15E3),(4X))',advance='no') wn(w-1)
+         write(iounit2,'((ES23.15E3),(4X))',advance='no') wn(w-1)
          do s=1,nspin
             do m=1,size(simp(:,1,1,1))
                tmp = s_gw_loc(m,m,s,w) - s_gw_dc(m,m,s,w)
-               write(iounit1,'(2(ES23.16,2X),(4X))',advance='no') real(tmp),aimag(tmp)
+               write(iounit1,'(2(ES23.15E3,2X),(4X))',advance='no') real(tmp),aimag(tmp)
 
                tmp = tmp + simp(m,m,s,w)
-               write(iounit2,'(2(ES23.16,2X),(4X))',advance='no') real(tmp),aimag(tmp)
+               write(iounit2,'(2(ES23.15E3,2X),(4X))',advance='no') real(tmp),aimag(tmp)
             enddo
          enddo
          write(iounit1,'(A1)') ' '
@@ -1763,7 +1763,7 @@ do ik=0,nkx/2 + nky/2 + nky/2 + nkz/2
          !write(iounit,'(A5,I2)') 'Spin=',s
          do m1=1,norb
             do m2=1,norb
-               write(iounit,'(ES23.16,2X)',advance='no') hartree(m1,m2,s)
+               write(iounit,'(ES23.15E3,2X)',advance='no') hartree(m1,m2,s)
             enddo
             write(iounit,'(A1)') ' '
          enddo
@@ -1778,7 +1778,7 @@ do ik=0,nkx/2 + nky/2 + nky/2 + nkz/2
          !write(iounit,'(A5,I2)') 'Spin=',s
          do m1=1,norb
             do m2=1,norb
-               write(iounit,'(ES23.16,2X)',advance='no') exchange(m1,m2,s)
+               write(iounit,'(ES23.15E3,2X)',advance='no') exchange(m1,m2,s)
             enddo
             write(iounit,'(A1)') ' '
          enddo
@@ -1796,7 +1796,7 @@ do ik=0,nkx/2 + nky/2 + nky/2 + nkz/2
       integer :: iounit=10
       
       open(unit=iounit,file=filename,status="unknown")
-      write(iounit,'(ES23.16)') mu
+      write(iounit,'(ES23.15E3)') mu
       
       close(iounit)
    end subroutine write_mu
@@ -2576,8 +2576,8 @@ do ik=0,nkx/2 + nky/2 + nky/2 + nkz/2
                       do m2=1,size(s_gw(:,1,1,1,1))
                          do m1=1,size(s_gw(1,:,1,1,1))
                             write(iounit,'(I5,3X)', advance='no') w
-                            write(iounit,'(ES23.16,3X)', advance='no') real( s_gw(m1,m2,s,ik,w) )/HartreeToEV
-                            write(iounit,'(ES23.16,3X)', advance='no') aimag(s_gw(m1,m2,s,ik,w) )/HartreeToEV
+                            write(iounit,'(ES23.15E3,3X)', advance='no') real( s_gw(m1,m2,s,ik,w) )/HartreeToEV
+                            write(iounit,'(ES23.15E3,3X)', advance='no') aimag(s_gw(m1,m2,s,ik,w) )/HartreeToEV
                          enddo !m2 loop
                       enddo !m1 loop
                    enddo !s loop

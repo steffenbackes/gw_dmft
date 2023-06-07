@@ -25,7 +25,7 @@ print 'Found norb=',norb
 inf.readline()
 
 for n in range(nw):
-	outf.write( str( (2*n+1)*np.pi/beta ) + '\t')
+	outf.write( "{:.7e}".format( (2*n+1)*np.pi/beta ) + '\t')
 
 	gimp = np.zeros((norb,norb,2),dtype=complex)
 	gimps = np.zeros((norb,norb,2,2),dtype=complex)
@@ -40,7 +40,7 @@ for n in range(nw):
 	for s in range(2):
 		for m1 in range(norb):
 			for m2 in range(norb):
-				outf.write(str(gimps[m1,m2,s,s].real) + '\t' + str(gimps[m1,m2,s,s].imag) + '\t') 
+				outf.write("{:.7e}".format(gimps[m1,m2,s,s].real) + '\t' + "{:.7e}".format(gimps[m1,m2,s,s].imag) + '\t') 
 
 	outf.write('\n')
 outf.close()
@@ -75,7 +75,7 @@ for l in range(nlegendre):
 	for m1 in range(norb):
 		for m2 in range(norb):
 			for s1 in range(2):		
-				outf.write( str(legendre[l,m1,m2,s1]) + '\t' )
+				outf.write( "{:.7e}".format(legendre[l,m1,m2,s1]) + '\t' )
 	outf.write( '\n' )
 
 outf.close()
