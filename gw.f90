@@ -21,8 +21,6 @@ module gw
       real(kr),allocatable   :: readUtmp(:,:),readJtmp(:,:) ! norbPerAtom(atom),norbPerAtom(atom)
 
       write(*,'(A)') ' Set up the bare interaction...'
-write(*,'(A)') '!! WARNING !!! We use dmft_orbitals in setup_bare_interaction(V) instead of norbPerAtom !!!'
-write(*,'(A)') '!! WARNING !!! All the other GW routines work on the full norb !!!'
 
       V = (0.0_kr,0.0_kr)
 

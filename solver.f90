@@ -218,8 +218,8 @@ module solver
          ! ==========================================================
          ! First write the hybridization function on imaginary time
          write(*,'(A)') ' Calculate imaginary time hybrid function...'
-         if (atom>9)  write(path, "(A,I2,A)") "imp",atom,"/delta"
-         if (atom<10) write(path, "(A,I1,A)") "imp",atom,"/delta"
+         if (atom>9)  write(path, "(A,I2,A)") "imp",atom,"/delta0"
+         if (atom<10) write(path, "(A,I1,A)") "imp",atom,"/delta0"
          call write_imag_time_hybrid(trim(path),hybrid_trafo)
          ! ==========================================================
          ! And the bath Green's function on imaginary time, submit delta because we

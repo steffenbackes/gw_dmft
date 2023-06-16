@@ -1,8 +1,9 @@
 #!/bin/bash
-noAtoms=1
+Atoms=( 1 )
 noCores=48
 
-for a in {1..${noAtoms}}
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/home/steffen/lib"
+for a in "${Atoms[@]}"
 do
    cd imp${a}
    sed -i "s/seed.*/seed=`shuf -i 1-1000 -n 1`/" input.ini
