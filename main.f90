@@ -117,8 +117,8 @@ program main
 
    allocate( mu_loc(norb,norb,nspin) );                           mu_loc     = (0.0_kr)
    allocate( gw_kvecs(gw_nkpts,3) );                         gw_kvecs   = (0.0_kr)
-   allocate( Utrafo(norbPerAtom,norbPerAtom,nspin) )             ; Utrafo=(0.0_kr,0.0_kr)
-   allocate( UtrafoT(norbPerAtom,norbPerAtom,nspin) )            ; UtrafoT=(0.0_kr,0.0_kr)
+   allocate( Utrafo(norb,norb,nspin) )             ; Utrafo=(0.0_kr,0.0_kr)
+   allocate( UtrafoT(norb,norb,nspin) )            ; UtrafoT=(0.0_kr,0.0_kr)
    
    write(*,'(A,F8.3,A)') ' Allocated approx. ~',                     &
       &  ( 2*sizeof(h_dft) + sizeof(v_xc) + 10*sizeof(gloc) + sizeof(S_gw)         &
@@ -318,6 +318,7 @@ program main
       call check_offdiagonal("G_bath",gbath)
       call write_loc_matsfunc_matrix("g_bath.dat",gbath)
       call write_pade_loc(gbath,"g_bath_pade.dat",.true.)
+      call write_dmft_atom_parts(gbath,"g_bath.dat")
       call print_local_orbital_levels(mu_loc)
       write(*,'(A)') ' Calculate hybridization function...'
       call get_hybrid(hybrid,gbath,mu_loc)
@@ -505,7 +506,7 @@ program main
    deallocate( UtrafoT )
 
    ! This has been allocated when reading the input in io_ops.f90
-   deallocate( dmftOrbsIndex )
+!   deallocate( dmftOrbsIndex )
 !   deallocate( degOrbs%noDegenOrbs )
 !   deallocate( degOrbs%degenOrbsIndex )
    

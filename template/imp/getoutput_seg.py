@@ -3,7 +3,7 @@ import os
 
 # read GF
 inf = open('Swl.dat','r')
-inf2 = open('../g_bath.dat','r')
+inf2 = open('g_bath.dat','r')
 outf =open('Gwl.dat','w')
 
 ii = 0

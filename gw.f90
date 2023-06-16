@@ -16,9 +16,9 @@ module gw
    subroutine setup_bare_interaction(V)
       complex(kr),intent(inout)    :: V(:,:,:,:,:)      ! norb**2,norb**2,nspin,nkpts,nnu
 
-      integer(ki)            :: m1,m2,a,b, iounit=13, i,j, ikx,iky,ikz, ik,x,y
+      integer(ki)            :: m1,m2,a,b, iounit=13, i,j, ikx,iky,ikz, ik,x,y, atom
       real(kr)               :: F2,F4,F0,U0,J1,J2,J3,J4,Jmat(5,5), kx, ky, kz, dist
-      real(kr)               :: readUtmp(norb_dmft,norb_dmft),readJtmp(norb_dmft,norb_dmft)
+      real(kr),allocatable   :: readUtmp(:,:),readJtmp(:,:) ! norbPerAtom(atom),norbPerAtom(atom)
 
       write(*,'(A)') ' Set up the bare interaction...'
 write(*,'(A)') '!! WARNING !!! We use dmft_orbitals in setup_bare_interaction(V) instead of norbPerAtom !!!'
@@ -33,158 +33,182 @@ write(*,'(A)') '!! WARNING !!! All the other GW routines work on the full norb !
             write(*,'(A)') ' Reading interaction matrix from umatrix_in.dat ...'
 
             open(unit=iounit,file="umatrix_in.dat",status="old")
-            ! read Umat
-            do m1=1,norb_dmft
-               read(iounit,*) readUtmp(m1,:)
-            enddo
-            ! read Jmat
-            do m1=1,norb_dmft
-               read(iounit,*) readJtmp(m1,:)
-            enddo
 
-            ! copy all U   values to U_iiii 
-            ! copy all U' values to U_ijij = U_(ii)(jj) in the two-particle basis matrix representation
-            ! copy all J values to U_iijj = U_(ij)(ij) and U_ijji  
-            do i=1,norb_dmft
-               do j=1,norb_dmft
-                  ! U and U' term
-                  m1 = dmftOrbsIndex(i)     
-                  m2 = dmftOrbsIndex(j)     
-                  a = (m1-1)*norb+m1          
-                  b = (m2-1)*norb+m2          
-                  V(a,b,:,:,:) = readUtmp(i,j)*U0scaleFac
-      
-                  if (i/=j) then
-                     ! first J term iijj
-                     a = (m1-1)*norb+m2          
-                     b = (m1-1)*norb+m2          
-                     V(a,b,:,:,:) = readJtmp(i,j)
-                     ! second J term ijji
-                     a = (m1-1)*norb+m2          
-                     b = (m2-1)*norb+m1          
-                     V(a,b,:,:,:) = readJtmp(i,j)
-                  endif
-      
+            do atom=1,noAtoms
+               allocate( readUtmp(norbPerAtom(atom),norbPerAtom(atom)) )               
+               allocate( readJtmp(norbPerAtom(atom),norbPerAtom(atom)) )               
+
+               ! read Umat
+               do m1=1,norbPerAtom(atom)
+                  read(iounit,*) readUtmp(m1,:)
                enddo
-            enddo
+               ! read Jmat
+               do m1=1,norbPerAtom(atom)
+                  read(iounit,*) readJtmp(m1,:)
+               enddo
 
+               ! copy all U   values to U_iiii 
+               ! copy all U' values to U_ijij = U_(ii)(jj) in the two-particle basis matrix representation
+               ! copy all J values to U_iijj = U_(ij)(ij) and U_ijji  
+               do i=1,norbPerAtom(atom)
+                  do j=1,norbPerAtom(atom)
+                     ! U and U' term
+                     m1 = norb_dmft(atom,i)     
+                     m2 = norb_dmft(atom,j)     
+                     a = (m1-1)*norb+m1          
+                     b = (m2-1)*norb+m2          
+                     V(a,b,:,:,:) = readUtmp(i,j)*U0scaleFac
+         
+                     if (i/=j) then
+                        ! first J term iijj
+                        a = (m1-1)*norb+m2          
+                        b = (m1-1)*norb+m2          
+                        V(a,b,:,:,:) = readJtmp(i,j)
+                        ! second J term ijji
+                        a = (m1-1)*norb+m2          
+                        b = (m2-1)*norb+m1          
+                        V(a,b,:,:,:) = readJtmp(i,j)
+                     endif
+         
+                  enddo ! j
+               enddo ! i
+
+               deallocate(readJtmp)
+               deallocate(readUtmp)
+            enddo ! atom
             close(iounit)
 
          else ! we construct the Umatrix ourselves
-             ! For one orbital
-             if (norb_dmft==1) then
-                V(1,1,:,:,:) = Uinput*U0scaleFac
-   
-             ! For three orbitals use normal Kanamori
-             else if (norb_dmft .lt. 5) then
-                 do i=1,norb_dmft
-                    ! U term
-                    m1 = dmftOrbsIndex(i)     
-                    a = (m1-1)*norb+m1          
-                    b = (m1-1)*norb+m1          
-                    V(a,b,:,:,:) = Uinput*U0scaleFac
-     
-                    do j=1,norb_dmft
-                       if (i/=j) then
-                          ! U' term
-                          m2 = dmftOrbsIndex(j)     
-                          a = (m1-1)*norb+m1          
-                          b = (m2-1)*norb+m2          
-                          V(a,b,:,:,:) = (Uinput-2*Jinput)*U0scaleFac
-        
-                          ! first J term iijj
-                          a = (m1-1)*norb+m2          
-                          b = (m1-1)*norb+m2          
-                          V(a,b,:,:,:) = Jinput
-                          ! second J term ijji
-                          a = (m1-1)*norb+m2          
-                          b = (m2-1)*norb+m1          
-                          V(a,b,:,:,:) = Jinput
-                      endif
-               enddo
-            enddo
-             ! For five orbitals use Slater form!
-             ! Assume ordering dz2, dx2y2, dxy, dxz, dyz like Wien2K
-             else if (norb_dmft==5) then
-                F0 = Uinput
-                F2 = Jinput*8*14/13.0_kr  ! use F4/F2 = 5/8
-                F4 = 14*Jinput - F2       ! follow thesis of Steffen Backes, page 97
-   
-                U0 =  Uinput            + Jinput*8/7.0_kr
-                J1 =  F2*3/49.0_kr      + F4*20/(9*49.0_kr)
-                J2 = -Jinput*10/7.0_kr + 3*J1
-                J3 =  Jinput*30/7.0_kr - 5*J1
-                J4 =  Jinput*20/7.0_kr - 3*J1
-   
-                ! For Jmat now the orbital order comes into play! See above!
-                ! If orbital order is different, this must be modified!
-                Jmat = reshape( [ zero,   J2,   J2,   J4,   J4,  &
-                              &     J2, zero,   J3,   J1,   J1,  &
-                              &     J2,   J3, zero,   J1,   J1,  &
-                              &     J4,   J1,   J1, zero,   J1,  &
-                              &     J4,   J1,   J1,   J1, zero ] ,[5,5] )
-   
-                 do i=1,norb_dmft
-                    ! U term
-                    m1 = dmftOrbsIndex(i)     
-                    a = (m1-1)*norb+m1          
-                    b = (m1-1)*norb+m1          
-                    V(a,b,:,:,:) = U0*U0scaleFac
-     
-                    do j=1,norb_dmft
-                       if ( i/=j) then
-                          ! U' term
-                          m2 = dmftOrbsIndex(j)     
-                          a = (m1-1)*norb+m1          
-                          b = (m2-1)*norb+m2          
-                          V(a,b,:,:,:) = (U0-2*Jmat(i,j))*U0scaleFac
-        
-                          ! first J term iijj
-                          a = (m1-1)*norb+m2          
-                          b = (m1-1)*norb+m2          
-                          V(a,b,:,:,:) = Jmat(i,j)
-                          ! second J term ijji
-                          a = (m1-1)*norb+m2          
-                          b = (m2-1)*norb+m1          
-                          V(a,b,:,:,:) = Jmat(i,j)
-                     endif
-                  enddo
-               enddo
 
-               write(*,'(A)') 'Slater 5-orb Umat:'
-               do i=1,norb_dmft
-                  do j=1,norb_dmft
-                     m1 = dmftOrbsIndex(i)     
-                     m2 = dmftOrbsIndex(j)     
-                     a = (m1-1)*norb+m1          
-                     b = (m2-1)*norb+m2          
-                     write(*,'(F9.5, A)',advance='no') real(V(a,b,1,1,1)), ' '
+            do atom=1,noAtoms
+                ! For one orbital
+                if (norbPerAtom(atom)==1) then
+                   m1 = norb_dmft(atom,1)     
+                   m2 = norb_dmft(atom,1)     
+                   a = (m1-1)*norb+m1          
+                   b = (m2-1)*norb+m2          
+                   V(a,b,:,:,:) = Uinput*U0scaleFac
+      
+                ! For three orbitals use normal Kanamori
+                else if (norbPerAtom(atom) .lt. 5) then
+                    do i=1,norbPerAtom(atom)
+                       ! U term
+                       m1 = norb_dmft(atom,i)     
+                       a = (m1-1)*norb+m1          
+                       V(a,a,:,:,:) = Uinput*U0scaleFac
+        
+                       do j=1,norbPerAtom(atom)
+                          if (i/=j) then
+                             ! U' term
+                             m2 = norb_dmft(atom,j)     
+
+                             a = (m1-1)*norb+m1          
+                             b = (m2-1)*norb+m2          
+                             V(a,b,:,:,:) = (Uinput-2*Jinput)*U0scaleFac
+           
+                             ! first J term iijj
+                             a = (m1-1)*norb+m2          
+                             b = (m1-1)*norb+m2          
+                             V(a,b,:,:,:) = Jinput
+                             ! second J term ijji
+                             a = (m1-1)*norb+m2          
+                             b = (m2-1)*norb+m1          
+                             V(a,b,:,:,:) = Jinput
+                         endif
+                      enddo ! j
+                   enddo ! i
+                ! For five orbitals use Slater form!
+                ! Assume ordering dz2, dx2y2, dxy, dxz, dyz like Wien2K
+                else if (norbPerAtom(atom)==5) then
+                   F0 = Uinput
+                   F2 = Jinput*8*14/13.0_kr  ! use F4/F2 = 5/8
+                   F4 = 14*Jinput - F2       ! follow thesis of Steffen Backes, page 97
+      
+                   U0 =  Uinput            + Jinput*8/7.0_kr
+                   J1 =  F2*3/49.0_kr      + F4*20/(9*49.0_kr)
+                   J2 = -Jinput*10/7.0_kr + 3*J1
+                   J3 =  Jinput*30/7.0_kr - 5*J1
+                   J4 =  Jinput*20/7.0_kr - 3*J1
+      
+                   ! For Jmat now the orbital order comes into play! See above!
+                   ! If orbital order is different, this must be modified!
+                   Jmat = reshape( [ zero,   J2,   J2,   J4,   J4,  &
+                                 &     J2, zero,   J3,   J1,   J1,  &
+                                 &     J2,   J3, zero,   J1,   J1,  &
+                                 &     J4,   J1,   J1, zero,   J1,  &
+                                 &     J4,   J1,   J1,   J1, zero ] ,[5,5] )
+      
+                    do i=1,norbPerAtom(atom)
+                       m1 = norb_dmft(atom,i)     
+
+                       ! U term
+                       a = (m1-1)*norb+m1          
+                       V(a,b,:,:,:) = U0*U0scaleFac
+        
+                       do j=1,norbPerAtom(atom)
+                          if ( i/=j) then
+                             m2 = norb_dmft(atom,j)     
+                             ! U' term
+
+                             a = (m1-1)*norb+m1          
+                             b = (m2-1)*norb+m2          
+                             V(a,b,:,:,:) = (U0-2*Jmat(i,j))*U0scaleFac
+           
+                             ! first J term iijj
+                             a = (m1-1)*norb+m2          
+                             b = (m1-1)*norb+m2          
+                             V(a,b,:,:,:) = Jmat(i,j)
+                             ! second J term ijji
+                             a = (m1-1)*norb+m2          
+                             b = (m2-1)*norb+m1          
+                             V(a,b,:,:,:) = Jmat(i,j)
+                        endif
+                     enddo ! j
+                  enddo ! i
+   
+                  write(*,'(A)') 'Slater 5-orb Umat:'
+                  do i=1,norbPerAtom(atom)
+                     do j=1,norbPerAtom(atom)
+                        m1 = norb_dmft(atom,i)
+                        m2 = norb_dmft(atom,j)
+                        a = (m1-1)*norb+m1          
+                        b = (m2-1)*norb+m2          
+                        write(*,'(F9.5, A)',advance='no') real(V(a,b,1,1,1)), ' '
+                     enddo
+                     write(*,'(A)') ' '
+                  enddo
+                  write(*,'(A)') 'Slater 5-orb Jmat:'
+                  do i=1,norbPerAtom(atom)
+                     do j=1,norbPerAtom(atom)
+                        m1 = norb_dmft(atom,i)
+                        m2 = norb_dmft(atom,j)
+                        a = (m1-1)*norb+m2          
+                        b = (m1-1)*norb+m2          
+                        write(*,'(F9.5, A)',advance='no') real(V(a,b,1,1,1)), ' '
+                     enddo
+                     write(*,'(A)') ' '
                   enddo
                   write(*,'(A)') ' '
-               enddo
-               write(*,'(A)') 'Slater 5-orb Jmat:'
-               do i=1,norb_dmft
-                  do j=1,norb_dmft
-                     m1 = dmftOrbsIndex(i)     
-                     m2 = dmftOrbsIndex(j)     
-                     a = (m1-1)*norb+m2          
-                     b = (m1-1)*norb+m2          
-                     write(*,'(F9.5, A)',advance='no') real(V(a,b,1,1,1)), ' '
-                  enddo
-                  write(*,'(A)') ' '
-               enddo
-               write(*,'(A)') ' '
+   
+                else
+                   write(*,'(A)') 'ERROR: Interaction matrix of #orbitals >5 for each atom is not supported!'
+                   stop
+                endif ! norb_dmft
 
-             else
-                write(*,'(A)') 'ERROR: Interaction matrix of #orbitals != 1,3,5 for each atom is not supported!'
-                stop
-             endif ! norb_dmft
-         endif ! read Umatrix
+            enddo ! atom
+
+         endif ! read Umatrix or construct yourself 
 !      else
          ! We have usePolK==1
 
       ! Now add a long-range interaction (if needed)
-      if ( size(V(1,1,1,:,1))==nkpts ) then
+      if ( size(V(1,1,1,:,1))==nkpts .and. dist_interaction>0 .and. abs(Unninput)>0.001  ) then
+         if (noAtoms>1) then
+            write(*,'(A)') 'ERROR: Long-range interaction for noAtoms>1 not supported!'
+            stop(1)
+         endif
+         atom = 1 ! We only work with one atom
+
          do x=-dist_interaction,dist_interaction
             do y=-dist_interaction,dist_interaction
                dist = sqrt(1.0*x*x+y*y)
@@ -199,10 +223,10 @@ write(*,'(A)') '!! WARNING !!! All the other GW routines work on the full norb !
                      kz = ikz*2*pi/nkz
                      ik = ikx*nky*nkz + iky*nkz + ikz + 1
             
-                     do i=1,norb_dmft
-                        do j=1,norb_dmft
-                           m1 = dmftOrbsIndex(i)     
-                           m2 = dmftOrbsIndex(j)
+                     do i=1,norbPerAtom(atom)
+                        do j=1,norbPerAtom(atom)
+                           m1 = norb_dmft(atom,i)     
+                           m2 = norb_dmft(atom,j)
                            a = (m1-1)*norb+m1
                            b = (m2-1)*norb+m2
          
@@ -217,7 +241,7 @@ write(*,'(A)') '!! WARNING !!! All the other GW routines work on the full norb !
                endif ! dist < cutoff
             enddo ! y
          enddo ! x
-      endif
+      endif ! Should we add nonlocal interaction?
 
 !      endif ! usePolK
    end subroutine setup_bare_interaction

@@ -9,8 +9,44 @@ module matsfunc_ops
    implicit none
 
  contains
-   
 
+!  ============================================================
+!  == Extracts the submatrix of DMFT orbitals on a given atom
+!  ============================================================   
+   subroutine get_dmftpart_atom(fout,fin,atom)
+      complex(kr),intent(inout) :: fout(:,:)             ! norbPerAtom,norbPerAtom
+      complex(kr),intent(in)    :: fin(:,:)             ! norb,norb
+      integer(ki),intent(in)    :: atom
+
+      integer(ki) :: a,m1,m2,i,j
+
+      do m1=1,norbPerAtom(atom)
+         do m2=1,norbPerAtom(atom)
+            i = norb_dmft(atom,m1)
+            j = norb_dmft(atom,m2)
+            fout(m1,m2) = fin(i,j)
+         enddo
+      enddo
+   end subroutine get_dmftpart_atom
+
+!  ============================================================
+!  == Extracts the submatrix of DMFT orbitals on a given atom for real functions
+!  ============================================================   
+   subroutine get_dmftpart_atom_cr(fout,fin,atom)
+      complex(kr),intent(inout)   :: fout(:,:)             ! norbPerAtom,norbPerAtom
+      real(kr),intent(in)       :: fin(:,:)             ! norb,norb
+      integer(ki),intent(in)    :: atom
+
+      integer(ki) :: a,m1,m2,i,j
+
+      do m1=1,norbPerAtom(atom)
+         do m2=1,norbPerAtom(atom)
+            i = norb_dmft(atom,m1)
+            j = norb_dmft(atom,m2)
+            fout(m1,m2) = fin(i,j)
+         enddo
+      enddo
+   end subroutine get_dmftpart_atom_cr
 
 !  ============================================================
 !  == Calculate the Doublecounting between the GW and DMFT Selfenergy
@@ -21,12 +57,12 @@ module matsfunc_ops
       complex(kr),intent(in)    :: gloc(:,:,:,:)      ! norb,norb,nspin,nomega
       complex(kr),intent(in)    :: wloc(:,:,:,:)      ! norb**2,norb**2,nspin,nnu
 
-      integer                 :: w,k,s,m1,m2
+      integer                 :: w,k,s,m1,m2,a
       real(kr)                :: coeffs(5)
       complex(kr),allocatable :: dc_tmp(:,:,:,:)   ! norb,norb,nspin,nomega
 
 !!!!!!!!!!!!!
-             integer(ki) :: m,a
+             integer(ki) :: m
              integer(ki),parameter :: iounit = 10
              real(kr)              :: readindata(1+2*nspin*norb*norb) ! temparray for readin
              complex(kr)           :: tmp
@@ -49,14 +85,16 @@ module matsfunc_ops
             ! First get the full local GW Selfenergy but take only the
             ! diagonal elements for the DMFT orbitals, rest is zero
 
-            write(*,'(A)') ' Calculate the doublecounting as [GW]_loc ...'
+            write(*,'(A)') ' Calculate the doublecounting as [GW]_loc on the DMFT atoms ...'
             write(*,'(A)') ' We assume the DC to be orbital-diagonal, since s_imp is ...'
 
             call get_locpart_mats(dc_tmp,s_gw)
 
-            do m1=1,norb_dmft
-               m2 = dmftOrbsIndex(m1)
-               s_gw_dc(m2,m2,:,:) = dc_tmp(m2,m2,:,:)
+            do a=1,noAtoms
+               do m1=1,norbPerAtom(a)
+                  m2 = norb_dmft(a,m1)
+                  s_gw_dc(m2,m2,:,:) = dc_tmp(m2,m2,:,:)
+               enddo
             enddo
 
      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -104,12 +142,12 @@ module matsfunc_ops
       complex(kr),intent(in)    :: P_gw(:,:,:,:,:)    ! norb**2,norb**2,nspin,nkpts,nnu
       complex(kr),intent(in)    :: gloc(:,:,:,:)      ! norb,norb,nspin,nomega
 
-      integer                 :: w,k,s,m1,m2
+      integer                 :: w,k,s,m1,m2,a
       real(kr)                :: coeffs(5)
       complex(kr),allocatable :: dc_tmp(:,:,:,:)   ! norb**2,norb**2,nspin,nnu
 
 !!!!!!!!!!!!!
-             integer(ki) :: m,a
+             integer(ki) :: m
              integer(ki),parameter :: iounit = 10
              real(kr)              :: readindata(1+2*nspin*norb**2) ! temparray for readin
              complex(kr)           :: tmp
@@ -132,9 +170,11 @@ module matsfunc_ops
 
             call get_locpart_mats(dc_tmp,P_gw)
 
-            do m1=1,norb_dmft
-               m2 = dmftOrbsIndex(m1)-1
-               p_gw_dc(m2*norb+m2+1,m2*norb+m2+1,:,:) = dc_tmp(m2*norb+m2+1,m2*norb+m2+1,:,:)
+            do a=1,noAtoms
+               do m1=1,norbPerAtom(a)
+                  m2 = norb_dmft(a,m1)-1
+                  p_gw_dc(m2*norb+m2+1,m2*norb+m2+1,:,:) = dc_tmp(m2*norb+m2+1,m2*norb+m2+1,:,:)
+               enddo
             enddo
 
           else if (DCtype==2) then
@@ -413,11 +453,11 @@ module matsfunc_ops
             enddo
 
             ! copy only remaining intra-atom terms of the dmft orbitals
-            do a=0,noEquivAtoms-1
-               do m1=0,norbPerAtom-1
-                  do m2=0,norbPerAtom-1
-                     mm1 = dmftOrbsIndex( a*norbPerAtom + m1 +1)
-                     mm2 = dmftOrbsIndex( a*norbPerAtom + m2 +1)
+            do a=1,noAtoms
+               do m1=1,norbPerAtom(a)
+                  do m2=0,norbPerAtom(a)
+                     mm1 = norb_dmft(a,m1)
+                     mm2 = norb_dmft(a,m2)
                      gloc_tmp(mm1,mm2) = gloc(mm1,mm2,s,w)
                      simp_tmp(mm1,mm2) = simp(mm1,mm2,s,w)
                  enddo ! m2
@@ -463,16 +503,20 @@ module matsfunc_ops
       
       ! now get the local orbital levels
       do s=1,nspin
-         do i=1,norb
-            do j=1,norb
-               coeffs = get_highfreq_coeff(gbath_inv(i,j,s,:),0)
-               mu_loc(i,j,s) = coeffs(1)
+         do a=1,noAtoms
+            do m1=1,norbPerAtom(a)
+               do m2=1,norbPerAtom(a)
+                  i = norb_dmft(a,m1)
+                  j = norb_dmft(a,m2)
+                  coeffs = get_highfreq_coeff(gbath_inv(i,j,s,:),0)
+                  mu_loc(i,j,s) = coeffs(1)
 
             !coeffs = get_highfreq_coeff(gloc(i,i,s,:),1)
             !mu_loc(i,s) = dft_hartree(i,i,s) + dft_exchange(i,i,s) - coeffs(3)
-            enddo
-         enddo
-      enddo
+               enddo ! m2
+            enddo ! m1
+         enddo ! a
+      enddo ! s
 
 
       deallocate( gloc_tmp )
@@ -587,11 +631,11 @@ module matsfunc_ops
             enddo
 
             ! copy only remaining intra-atom terms of the dmft orbitals
-            do a=0,noEquivAtoms-1
-               do m1=0,norbPerAtom-1
-                  do m2=0,norbPerAtom-1
-                     mm1 = dmftOrbsIndex( a*norbPerAtom + m1 +1)
-                     mm2 = dmftOrbsIndex( a*norbPerAtom + m2 +1)
+            do a=1,noAtoms
+               do m1=1,norbPerAtom(a)
+                  do m2=1,norbPerAtom(a)
+                     mm1 = norb_dmft(a,m1)
+                     mm2 = norb_dmft(a,m2)
                      g_tmp(mm1,mm2) = gloc(mm1,mm2,s,w)
                  enddo ! m2
                enddo ! m1
@@ -691,11 +735,11 @@ module matsfunc_ops
             enddo
 
             ! copy only remaining intra-atom terms of the dmft orbitals
-            do a=0,noEquivAtoms-1
-               do m1=0,norbPerAtom-1
-                  do m2=0,norbPerAtom-1
-                     mm1 = dmftOrbsIndex( a*norbPerAtom + m1 +1)
-                     mm2 = dmftOrbsIndex( a*norbPerAtom + m2 +1)
+            do a=1,noAtoms
+               do m1=1,norbPerAtom(a)
+                  do m2=1,norbPerAtom(a)
+                     mm1 = norb_dmft(a,m1)
+                     mm2 = norb_dmft(a,m2)
 
                      epsGeps_proj(mm1,mm2) = epsGeps(mm1,mm2)
                      Geps_proj(mm1,mm2) = Geps(mm1,mm2) 
@@ -789,7 +833,7 @@ module matsfunc_ops
       complex(kr) :: pwploc(norb**2,norb**2) , pwpproj(norb**2,norb**2)       
       complex(kr) :: tmp(norb**2,norb**2) 
 
-      integer(ki) :: s,i,j,k,l,a,b,c,d,n,nwV
+      integer(ki) :: s,i,j,k,l,a,b,c,d,n,nwV, aa
       integer(ki),parameter :: iounit = 10
       real(kr)              :: readindata(2) ! temparray for readin
 
@@ -834,13 +878,15 @@ module matsfunc_ops
             enddo ! k
 
             ! now we screen the density-density terms
-            do k=1,norbPerAtom
-               do l=1,norbPerAtom
-                  a = dmftOrbsIndex(k)-1
-                  b = dmftOrbsIndex(l)-1
-                  uloc(a*norb+a+1, b*norb+b+1,:,n) = uloc(a*norb+a+1, b*norb+b+1,:,n) - (coeffs(1)-udensw(n))
-               enddo
-            enddo
+            do aa=1,noAtoms
+               do k=1,norbPerAtom(aa)
+                  do l=1,norbPerAtom(aa)
+                     a = norb_dmft(aa,k)-1
+                     b = norb_dmft(aa,l)-1
+                     uloc(a*norb+a+1, b*norb+b+1,:,n) = uloc(a*norb+a+1, b*norb+b+1,:,n) - (coeffs(1)-udensw(n))
+                  enddo
+               enddo 
+            enddo ! a
 
          enddo ! n
 
@@ -877,24 +923,26 @@ module matsfunc_ops
                pwproj = (0.0_kr,0.0_kr)
                wpproj = (0.0_kr,0.0_kr)
                pwpproj = (0.0_kr,0.0_kr)
-               do i=1,norbPerAtom
-                  do j=1,norbPerAtom
-                     do k=1,norbPerAtom
-                        do l=1,norbPerAtom
-                           a = dmftOrbsIndex(i)-1
-                           b = dmftOrbsIndex(j)-1
-                           c = dmftOrbsIndex(k)-1
-                           d = dmftOrbsIndex(l)-1
-
-                           wproj(   a*norb+c+1, b*norb+d+1 ) =   wloc(a*norb+c+1, b*norb+d+1)
-                           pproj(   a*norb+c+1, b*norb+d+1 ) =   ploc(a*norb+c+1, b*norb+d+1)
-                           pwproj(  a*norb+c+1, b*norb+d+1 ) =  pwloc(a*norb+c+1, b*norb+d+1)
-                           wpproj(  a*norb+c+1, b*norb+d+1 ) =  wploc(a*norb+c+1, b*norb+d+1)
-                           pwpproj( a*norb+c+1, b*norb+d+1 ) = pwploc(a*norb+c+1, b*norb+d+1)                           
-                        enddo 
-                     enddo 
-                  enddo 
-               enddo 
+               do aa=1,noAtoms
+                  do i=1,norbPerAtom(aa)
+                     do j=1,norbPerAtom(aa)
+                        do k=1,norbPerAtom(aa)
+                           do l=1,norbPerAtom(aa)
+                              a = norb_dmft(aa,i)-1
+                              b = norb_dmft(aa,j)-1
+                              c = norb_dmft(aa,k)-1
+                              d = norb_dmft(aa,l)-1
+   
+                              wproj(   a*norb+c+1, b*norb+d+1 ) =   wloc(a*norb+c+1, b*norb+d+1)
+                              pproj(   a*norb+c+1, b*norb+d+1 ) =   ploc(a*norb+c+1, b*norb+d+1)
+                              pwproj(  a*norb+c+1, b*norb+d+1 ) =  pwloc(a*norb+c+1, b*norb+d+1)
+                              wpproj(  a*norb+c+1, b*norb+d+1 ) =  wploc(a*norb+c+1, b*norb+d+1)
+                              pwpproj( a*norb+c+1, b*norb+d+1 ) = pwploc(a*norb+c+1, b*norb+d+1)                           
+                           enddo ! l
+                        enddo ! k
+                     enddo ! j
+                  enddo ! i
+               enddo ! aa 
 
                ! Then just copy back
                wloc = wproj
@@ -932,21 +980,21 @@ module matsfunc_ops
       complex(kr),intent(in)    :: gimp(:,:,:,:)      ! norb,norb,nspin,nomega
       complex(kr),intent(in)    :: gbath(:,:,:,:)      ! norb,norb,nspin,nomega
 
-      complex(8),allocatable  :: gbath_tmp(:,:)       ! norbPerAtom,norbPerAtom
-      complex(8),allocatable  :: gimp_tmp(:,:)        ! norbPerAtom,norbPerAtom
-      complex(8),allocatable  :: simp_tmp(:,:)        ! norbPerAtom,norbPerAtom
+      complex(8),allocatable  :: gbath_tmp(:,:)       ! norb,norb
+      complex(8),allocatable  :: gimp_tmp(:,:)        ! norb,norb
+      complex(8),allocatable  :: simp_tmp(:,:)        ! norb,norb
       integer(ki)             :: w,s,i,m,m1,m2,mm1,mm2,a
-      real(kr)                :: coeffs_gb(norbPerAtom,2,5),coeffs_gi(norbPerAtom,2,5), lincoeff
+      real(kr)                :: coeffs_gb(norb,2,5),coeffs_gi(norb,2,5), lincoeff
   !   Lapack stuff
-      complex(8), dimension(norbPerAtom) :: work  ! work array for LAPACK
-      integer, dimension(norbPerAtom)    :: ipiv  ! pivot indices
+      complex(8), dimension(norb) :: work  ! work array for LAPACK
+      integer, dimension(norb)    :: ipiv  ! pivot indices
       integer :: info_lpck
       external ZGETRF
       external ZGETRI
 
-      allocate( gbath_tmp(norbPerAtom,norbPerAtom) )
-      allocate( gimp_tmp(norbPerAtom,norbPerAtom) )
-      allocate( simp_tmp(norbPerAtom,norbPerAtom) )
+      allocate( gbath_tmp(norb,norb) )
+      allocate( gimp_tmp(norb,norb) )
+      allocate( simp_tmp(norb,norb) )
       
 
       write(*,'(A)') 'Obtain Selfenergy from Dyson equation...'
@@ -962,11 +1010,16 @@ module matsfunc_ops
       ! STILL, let's restrict to only the first atom to obtain the Selfenergy,
       ! since this is what went into the impurity solver 
 
-      do s=1,nspin
-         do m=1,norbPerAtom
-            m1 = dmftOrbsIndex(m)
-            coeffs_gb(m,s,:) = get_highfreq_coeff(gbath(m1,m1,s,:),0)
-            coeffs_gi(m,s,:) = get_highfreq_coeff(gimp(m1,m1,s,:),0)
+      coeffs_gb = (0.0_kr)
+      coeffs_gi = (0.0_kr)
+      lincoeff = (0.0_kr)
+      do a=1,noAtoms
+         do m=1,norbPerAtom(a)
+            do s=1,nspin
+               m1 = norb_dmft(a,m)
+               coeffs_gb(m1,s,:) = get_highfreq_coeff(gbath(m1,m1,s,:),0)
+               coeffs_gi(m1,s,:) = get_highfreq_coeff(gimp(m1,m1,s,:),0)
+            enddo
          enddo
       enddo
 
@@ -976,26 +1029,34 @@ module matsfunc_ops
             gimp_tmp = (0.0_kr,0.0_kr)
             simp_tmp = (0.0_kr,0.0_kr)
 
-            !only the atomic onsite term of the correlated atoms, ONLY FIRST ATOM
-            do m1=1,norbPerAtom
-               do m2=1,norbPerAtom
-                  mm1 = dmftOrbsIndex(m1)
-                  mm2 = dmftOrbsIndex(m2)
-                  gbath_tmp(m1,m2) = gbath(mm1,mm2 ,s,w)
-                  gimp_tmp(m1,m2)  = gimp(mm1,mm2 ,s,w)
+            do m1=1,norb  ! Failsafe
+               gbath_tmp(m1,m1) = (1.0_kr,0.0_kr)
+               gimp_tmp(m1,m1) = (1.0_kr,0.0_kr)
+            enddo
 
+            !only the atomic onsite term of the correlated atoms, ONLY FIRST ATOM
+            do a=1,noAtoms
+               do m1=1,norbPerAtom(a)
+                  do m2=1,norbPerAtom(a)
+                     mm1 = norb_dmft(a,m1)
+                     mm2 = norb_dmft(a,m2)
+                     gbath_tmp(mm1,mm2) = gbath(mm1,mm2 ,s,w)
+                     gimp_tmp(mm1,mm2)  = gimp(mm1,mm2 ,s,w)
+                  enddo
                enddo
             enddo
 
             ! Fix tails
-            if (w==1) then
-               write(*,*) 'Coeffs for Gbath in Dyson Eq:', coeffs_gb(1,1,2)
-               write(*,*) 'Coeffs for Gimp in Dyson Eq',coeffs_gi(1,1,2)
-            endif
-
-            do m=1,norbPerAtom
-               gbath_tmp(m,m) = gbath_tmp(m,m)/coeffs_gb(m,s,2)
-               gimp_tmp(m,m)  = gimp_tmp(m,m) /coeffs_gi(m,s,2)
+            do a=1,noAtoms
+               do m=1,norbPerAtom(a)
+                  mm1 = norb_dmft(a,m)
+                  gbath_tmp(mm1,mm1) = gbath_tmp(mm1,mm1)/coeffs_gb(mm1,s,2)
+                  gimp_tmp(mm1,mm1)  = gimp_tmp(mm1,mm1) /coeffs_gi(mm1,s,2)
+                  if (w==1) then
+                     write(*,*) 'Coeffs for Gbath in Dyson Eq:', coeffs_gb(mm1,s,2)
+                     write(*,*) 'Coeffs for Gimp in Dyson Eq',coeffs_gi(mm1,s,2)
+                  endif
+               enddo
             enddo
             !if (w==1) then
             !   write(*,*) 'Gbath = ',gbath_tmp
@@ -1003,26 +1064,26 @@ module matsfunc_ops
             !endif
 
             ! Then invert with LAPACK
-            call ZGETRF(norbPerAtom, norbPerAtom, gbath_tmp, norbPerAtom, ipiv, info_lpck)
+            call ZGETRF(norb, norb, gbath_tmp, norb, ipiv, info_lpck)
             if (info_lpck /= 0) then
                write(*,*)' ERROR: bath Greensfunction is numerically singular! Return value',&
                          & info_lpck
                stop 
             end if
-            call ZGETRI(norbPerAtom, gbath_tmp, norbPerAtom, ipiv, work, norbPerAtom, info_lpck)
+            call ZGETRI(norb, gbath_tmp, norb, ipiv, work, norb, info_lpck)
             if (info_lpck /= 0) then
               stop 'Matrix inversion failed!'
             end if
             ! gbath_tmp is now the inverse of g_bath
 
             ! Then invert with LAPACK
-            call ZGETRF(norbPerAtom, norbPerAtom, gimp_tmp, norbPerAtom, ipiv, info_lpck)
+            call ZGETRF(norb, norb, gimp_tmp, norb, ipiv, info_lpck)
             if (info_lpck /= 0) then
                write(*,*)' ERROR: impurity Greensfunction is numerically singular! Return value',&
                          & info_lpck
                stop 
             end if
-            call ZGETRI(norbPerAtom, gimp_tmp, norbPerAtom, ipiv, work, norbPerAtom, info_lpck)
+            call ZGETRI(norb, gimp_tmp, norb, ipiv, work, norb, info_lpck)
             if (info_lpck /= 0) then
               stop 'Matrix inversion failed!'
             end if
@@ -1038,13 +1099,13 @@ module matsfunc_ops
 !               end if
 !            end do
 
-            ! copy to full Selfenergy
-            do a=0,noEquivAtoms-1
-               do m1=0,norbPerAtom-1
-                  do m2=0,norbPerAtom-1
-                     mm1 = dmftOrbsIndex( a*norbPerAtom + m1 +1)
-                     mm2 = dmftOrbsIndex( a*norbPerAtom + m2 +1)
-                     sigma(mm1,mm2,s,w) = simp_tmp(m1+1, m2+1)
+            ! copy to full Selfenergy but don't overwrite other stuff
+            do a=1,noAtoms
+               do m1=1,norbPerAtom(a)
+                  do m2=1,norbPerAtom(a)
+                     mm1 = norb_dmft(a,m1)
+                     mm2 = norb_dmft(a,m2)
+                     sigma(mm1,mm2,s,w) = simp_tmp(mm1,mm2)
 
 !                     if (a==0) then
 !                        sigma(mm1,mm2,s,w) = simp_tmp(m1+1, m2+1)
@@ -1555,25 +1616,33 @@ module matsfunc_ops
       character(len=*), intent(in) :: filename
       complex(kr),intent(in)       :: hybrid(:,:,:,:)     ! norbPerAtom,norbPerAtom,nspin,nomega
 
-      complex(kr)           :: delta, deltam(norbPerAtom,norbPerAtom,nspin)
-      real(kr)              :: tau,c1,c2,c3,c4,wnn,coswnt,sinwnt,coeffs(5)
-      integer(ki),parameter :: iounit = 10, iounit2=11, iounit3=12
-      integer(ki)           :: w,s,s2,i,m1,m2,t
+      complex(kr)             :: delta
+      complex(kr),allocatable :: deltam(:,:,:)                       ! deltam(norb,norb,nspin)
+      real(kr)                :: tau,c1,c2,c3,c4,wnn,coswnt,sinwnt,coeffs(5)
+      integer(ki),parameter   :: iounit = 10, iounit2=11, iounit3=12
+      integer(ki)             :: w,s,s2,m1,m2,t, a, i,j, ndim
+      character(len=1024)     :: path1,path2,path3
 
       ! Be careful of the ordering ! 
       ! For the CTHYB spin runs first, then orbitals !
 
-      open(unit=iounit,file=filename,status="unknown")
-      open(unit=iounit2,file="delta0_matrix.dat",status="unknown")
-      open(unit=iounit3,file="delta0_matrix_solver.dat",status="unknown")
+      ndim = size(hybrid(:,1,1,1))
+
+      allocate( deltam(ndim,ndim,nspin) )
+
+      write(*,'(A,A)') 'Writing hybridization(tau) to ',filename
+
+      open(unit=iounit, file=filename//".dat",              status="unknown")
+      open(unit=iounit2,file=filename//"_matrix.dat",       status="unknown")
+      open(unit=iounit3,file=filename//"_matrix_solver.dat",status="unknown")
       do t=1,ntau+1
          call progress(t,ntau+1)
 
          tau = (t-1)*beta/ntau
          write(iounit,'((ES23.15E3),(4X))',advance='no') tau
          write(iounit2,'((ES23.15E3),(4X))',advance='no') tau
-         do m1=1,norbPerAtom
-            do m2=1,norbPerAtom
+         do m1=1,ndim
+            do m2=1,ndim
                do s=1,nspin
                   delta = 0.0_kr
                   if (m1==m2) then  ! only use HF correction for diagonals
@@ -1604,19 +1673,17 @@ module matsfunc_ops
                         enddo  
 
                      ! keep it causal when there is Monte Carlo noise
-                     if (m1==m2) then
-                         if (real(delta)>0.0_kr) delta = 0.0_kr
-                         write(iounit,'(ES23.15E3,4X)',advance='no') real(delta)  ! used for SEGMENT solver
-                     endif
+                      if (real(delta)>=0.0_kr) delta = -1.0E-10
+                      write(iounit,'(ES23.15E3,4X)',advance='no') real(delta)  ! used for SEGMENT solver
 
-                  else ! m1!=m2
+                  else ! i!=j
                      delta = 0.0_kr
                      do w=1,nomega
                         wnn = wn(w-1)
                         delta = delta + (       hybrid(m1,m2,s,w) *exp(-ci*wnn*tau)       &
                                     &    +conjg(hybrid(m2,m1,s,w))*exp(+ci*wnn*tau) )/beta
                      enddo
-                  endif ! m1==m2
+                  endif ! i==j
    
                   ! general matrix format for plotting
                   write(iounit2,'(2(ES23.15E3,4X))',advance='no') real(delta),aimag(delta)
@@ -1630,9 +1697,9 @@ module matsfunc_ops
          write(iounit2,'(A1)') ' '
 
          ! matrix solver format
-         do m1=0,norbPerAtom-1
+         do m1=0,ndim-1
             do s=0,nspin-1
-               do m2=0,norbPerAtom-1
+               do m2=0,ndim-1
                   do s2=0,nspin-1
                      if (s==s2) then
                         write(iounit3,'((I6,4X,I3,4X,I3,4X,ES17.10,4X,ES17.10,4X))') t-1,(m1*2+s),(m2*2+s2), & 
@@ -1650,6 +1717,9 @@ module matsfunc_ops
       close(iounit)
       close(iounit2)
       close(iounit3)
+
+      deallocate(deltam)
+
    end subroutine write_imag_time_hybrid
 
 !  ============================================================
@@ -1670,8 +1740,8 @@ module matsfunc_ops
       ndim = size(func(:,1,1,1))
       allocate( deltam(ndim,ndim,nspin,ntau+1) )
 
-      open(unit=iounit,file=filename,status="unknown")
-      open(unit=iounit2,file="gbath_tau_matrix.dat",status="unknown")
+      open(unit=iounit,file=filename//".dat",status="unknown")
+      open(unit=iounit2,file=filename//"_matrix.dat",status="unknown")
 
       do t=1,ntau+1
          call progress(t,ntau+1)
@@ -1711,7 +1781,7 @@ module matsfunc_ops
    
                      ! keep it causal when there is Monte Carlo noise
                      if (m1==m2) then
-                         if (real(delta)>0.0_kr) delta = 0.0_kr
+                         if (real(delta)>=0.0_kr) delta = -1.0E-10
                          write(iounit,'(ES23.15E3,4X)',advance='no') real(delta)  ! used for SEGMENT solver
                      endif
                   
@@ -1740,7 +1810,7 @@ module matsfunc_ops
       close(iounit)
       close(iounit2)
 
-      open(unit=iounit3,file="gbath_tau_matrix_solver.dat",status="unknown")
+      open(unit=iounit3,file=filename//"_matrix_solver.dat",status="unknown")
       write(iounit3,'((I1),(3X),(I3),(3X),(I7),(3X),(F10.4))') 2, ndim, ntau+1, beta
       ! matrix solver format
       do s=0,nspin-1
@@ -1763,55 +1833,63 @@ module matsfunc_ops
 
 !  ============================================================
 !  == Calculate and write bath Green's function on imaginary time
-!  == BUT: Write only data for first equivalent DMFT atom !
+!  == This is for CT-INT 
 !  ============================================================
    subroutine write_imag_time_bath(filename,hybrid,mu_loc)
       character(len=*), intent(in) :: filename
-      complex(kr),intent(in)       :: hybrid(:,:,:,:)     ! norbPerAtom,norbPerAtom,nspin,nomega
-      complex(kr),intent(in)       :: mu_loc(:,:,:)      ! norbPerAtom,norbPerAtom,nspin
+      complex(kr),intent(in)       :: hybrid(:,:,:,:)     ! ndim,ndim,nspin,nomega
+      complex(kr),intent(in)       :: mu_loc(:,:,:)      ! ndim,ndim,nspin
 
-      complex(kr)             :: delta, ginv(norbPerAtom,norbPerAtom)
-      real(kr)                :: tau,c1,c2,c3,c4,wnn,coswnt,sinwnt,coeffs(5),unity(norbPerAtom,norbPerAtom)
+      complex(kr)             :: delta
+      real(kr)                :: tau,c1,c2,c3,c4,wnn,coswnt,sinwnt,coeffs(5)
       integer(ki),parameter   :: iounit = 10, iounit2=11, iounit3=12
-      integer(ki)             :: w,s,s2,i,m1,m2,t
-      complex(kr),allocatable :: deltam(:,:,:,:) ! (norbPerAtom,norbPerAtom,nspin,ntau+1)
-      complex(kr),allocatable :: gbath(:,:,:,:)  ! (norbPerAtom,norbPerAtom,nspin,nomega)
+      integer(ki)             :: w,s,s2,i,j,m1,m2,t,a, ndim
+      complex(kr),allocatable :: ginv(:,:)         ! ndim,ndim
+      complex(kr),allocatable :: deltam(:,:,:,:) ! (ndim,ndim,nspin,ntau+1)
+      complex(kr),allocatable :: gbath(:,:,:,:)  ! (ndim,ndim,nspin,nomega)
+      real(kr),allocatable    :: unity(:,:)      ! ndim,ndim
+      character(len=1024)     :: path1,path2,path3
 
       ! first generate gbath with shifted mu_loc
 
-      allocate (gbath(norbPerAtom,norbPerAtom,nspin,nomega) )
+      ndim = size(hybrid(:,1,1,1))
+
+      allocate (gbath(ndim,ndim,nspin,nomega) )
+      allocate( deltam(ndim,ndim,nspin,ntau+1) )
+      allocate (ginv(ndim,ndim) )
+      allocate (unity(ndim,ndim) )
 
       unity = (0.0_kr)
-      do i=1,norbPerAtom
-        unity(i,i) = 1.0_kr
+      do i=1,ndim
+         unity(i,i) = 1.0_kr
       enddo
 
       do w=1,nomega
          do s=1,nspin
-           ! We can use Uinput here, CT-INT only works with constant U and single orb
-
-           ginv = unity*( ci*wn(w-1) - 0.5*Uinput ) + mu_loc(:,:,s) - hybrid(:,:,s,w)
-           call get_inverse( gbath(:,:,s,w), ginv, norbPerAtom )  
-
-         enddo
-      enddo
+            ! We can use Uinput here, CT-INT only works with constant U and single orb
+            ginv = unity*( ci*wn(w-1) - 0.5*Uinput ) + mu_loc(:,:,s) - hybrid(:,:,s,w)
+            
+            call get_inverse( gbath(:,:,s,w), ginv, ndim )  
+         enddo ! s
+      enddo ! w
 
       ! Be careful of the ordering ! 
       ! For the CTHYB spin runs first, then orbitals !
 
-      allocate( deltam(norbPerAtom,norbPerAtom,nspin,ntau+1) )
+      deltam = (0.0_kr,0.0_kr)
 
-      open(unit=iounit,file=filename,status="unknown")
-      open(unit=iounit2,file="gbath_tau_matrix.dat",status="unknown")
+      open(unit=iounit, file=filename//".dat",              status="unknown")
+      open(unit=iounit2,file=filename//"_matrix.dat",       status="unknown")
+      open(unit=iounit3,file=filename//"_matrix_solver.dat",status="unknown")
 
       do t=1,ntau+1
          call progress(t,ntau+1)
-      
+   
          tau = (t-1)*beta/ntau
          write(iounit,'((ES23.15E3),(4X))',advance='no') tau
          write(iounit2,'((ES23.15E3),(4X))',advance='no') tau
-         do m1=1,norbPerAtom
-            do m2=1,norbPerAtom
+         do m1=1,ndim
+            do m2=1,ndim
                do s=1,nspin
                   if (m1==m2) then
                      coeffs = get_highfreq_coeff(gbath(m1,m2,s,:),1)
@@ -1819,7 +1897,7 @@ module matsfunc_ops
                      c2 = coeffs(3)
                      c3 = coeffs(4)
                      c4 = coeffs(5)
-   
+
                      ! Use high-frequency correction up to 4-th order
                      ! assume positive tau for high freq. correction
                      delta = -0.5_kr*c1  + (2*tau-beta)*c2/4  &
@@ -1838,22 +1916,20 @@ module matsfunc_ops
                          &               + c2*coswnt/wnn**2                 &
                          &               - c3*sinwnt/wnn**3                 &
                          &               - c4*coswnt/wnn**4 )*2/beta                               
-                        enddo  
+                        enddo ! w
    
                      ! keep it causal when there is Monte Carlo noise
-                     if (m1==m2) then
-                         if (real(delta)>0.0_kr) delta = 0.0_kr
-                         write(iounit,'(ES23.15E3,4X)',advance='no') real(delta)  ! used for SEGMENT solver
-                     endif
+                     if (real(delta)>=0.0_kr) delta = -1.0E-10
+                     write(iounit,'(ES23.15E3,4X)',advance='no') real(delta)  ! used for SEGMENT solver
                   
-                  else ! m1!=m2
+                  else ! i/=j
                      delta = 0.0_kr
                      do w=1,nomega
                         wnn = wn(w-1)
                         delta = delta + (       gbath(m1,m2,s,w) *exp(-ci*wnn*tau)       &
                                     &    +conjg(gbath(m2,m1,s,w))*exp(+ci*wnn*tau) )/beta
-                     enddo
-                  endif
+                     enddo !w
+                  endif !i==j?
 
                   ! general matrix format for plotting
                   write(iounit2,'(2(ES23.15E3,4X))',advance='no') real(delta),aimag(delta)
@@ -1865,18 +1941,16 @@ module matsfunc_ops
          enddo ! m1 loop
          write(iounit,'(A1)') ' '
          write(iounit2,'(A1)') ' '
-
       enddo ! t loop
       write(*,'(A)') ' '
       close(iounit)
       close(iounit2)
-
-      open(unit=iounit3,file="gbath_tau_matrix_solver.dat",status="unknown")
-      write(iounit3,'((I1),(3X),(I3),(3X),(I7),(3X),(F10.4))') 2, norbPerAtom, ntau+1, beta
+   
+      write(iounit3,'((I1),(3X),(I3),(3X),(I7),(3X),(F10.4))') 2, ndim, ntau+1, beta
       ! matrix solver format
       do s=0,nspin-1
-         do m1=0,norbPerAtom-1
-            do m2=0,norbPerAtom-1
+         do m1=0,ndim-1
+            do m2=0,ndim-1
                do t=1,ntau+1
                   write(iounit3,'((I1,4X,I4,4X,I4,4X,I7,4X,ES17.10,4X,ES17.10,4X))') s, m1, m2, t-1, & 
                                                              &  real(deltam(m1+1,m2+1,s+1,t)),aimag(deltam(m1+1,m2+1,s+1,t))
@@ -1884,12 +1958,12 @@ module matsfunc_ops
             enddo ! m2
          enddo ! m1
       enddo ! s
-
-
       close(iounit3)
 
       deallocate( deltam )
       deallocate( gbath )
+      deallocate (ginv )
+      deallocate (unity )
 
    end subroutine write_imag_time_bath
 
@@ -2405,12 +2479,14 @@ module matsfunc_ops
 !  ============================================================
    subroutine init_insulating(simp)
       complex(kr),intent(inout) :: simp(:,:,:,:)        ! norb,norb,nspin,nomega
-      integer(ki)               :: w,m,m1,s
+      integer(ki)               :: w,m,m1,s,a
       do w=1,nomega
-         do s=1,nspin
-            do m=1,norb_dmft
-               m1 = dmftOrbsIndex(m)
-               simp(m1,m1,s,w) = real(simp(m1,m1,s,w)) + 1.0_kr/( ci*wn(w-1) )
+         do a=1,noAtoms
+            do s=1,nspin
+               do m=1,norbPerAtom(a)
+                  m1 = norb_dmft(a,m)
+                  simp(m1,m1,s,w) = real(simp(m1,m1,s,w)) + 1.0_kr/( ci*wn(w-1) )
+               enddo
             enddo
          enddo
       enddo
@@ -2440,31 +2516,33 @@ module matsfunc_ops
 
       call get_local_charge(charge,gloc)
 
-      write(*,'(A)') ' Calculate the Hartree and Fock terms (only on a single DMFT atom)...'
+      write(*,'(A)') ' Calculate the Hartree and Fock terms for each DMFT atom...'
 
-      ! This is Hartree
-      do m1=1,norbPerAtom
-         do s1=1,nspin
-           m1d = dmftOrbsIndex(m1)
+      do a=1,noAtoms
+         ! This is Hartree
+         do m1=1,norbPerAtom(a)
+            do s1=1,nspin
+              m1d = norb_dmft(a,m1)
+   
+              ! Sum up total Charge for later, this is the charge on the DMFT atom
+              totCharge = totCharge + charge( m1d, s1)
 
-           ! Sum up total Charge for later, this is the charge on the 1st equiv. DMFT Atom only!!!
-           totCharge = totCharge + charge( m1d, s1)
-
-           ! This is U_0*( n(m,up) + n(m,down) )
-            hartree(m1d,m1d,s1) = hartree(m1d,m1d,s1)            &
-                         &       + uloc((m1d-1)*norb+m1d,(m1d-1)*norb+m1d,1,wend)*( charge(m1d,1) + charge(m1d,2) )
-
-            do m2=1,norbPerAtom
-               m2d = dmftOrbsIndex(m2)
-               if (m2 /= m1) then
-                  ! this is (U0-2J_lm)*( n(m2,up) + n(m2,down) )
-
-                  hartree(m1d,m1d,s1) = hartree(m1d,m1d,s1)             &
-                           &      + uloc((m1d-1)*norb+m1d,(m2d-1)*norb+m2d,1,wend)*( charge(m2d,1) + charge(m2d,2) )
-               endif
-            enddo
-        enddo
-     enddo
+              ! This is U_0*( n(m,up) + n(m,down) )
+               hartree(m1d,m1d,s1) = hartree(m1d,m1d,s1)            &
+                            &       + uloc((m1d-1)*norb+m1d,(m1d-1)*norb+m1d,1,wend)*( charge(m1d,1) + charge(m1d,2) )
+   
+               do m2=1,norbPerAtom(a)
+                  m2d = norb_dmft(a,m2)
+                  if (m2d /= m1d) then
+                     ! this is (U0-2J_lm)*( n(m2,up) + n(m2,down) )
+   
+                     hartree(m1d,m1d,s1) = hartree(m1d,m1d,s1)             &
+                              &      + uloc((m1d-1)*norb+m1d,(m2d-1)*norb+m2d,1,wend)*( charge(m2d,1) + charge(m2d,2) )
+                  endif
+               enddo ! m2
+           enddo ! s1
+        enddo ! m1
+     enddo ! a
 
      ! If we use a frequency dependent interaction the 
      ! Hartree part is modified
@@ -2480,38 +2558,30 @@ module matsfunc_ops
 !     endif
 
      ! This is Fock exchange
-     do m1=1,norbPerAtom
-        do s1=1,nspin
-           m1d = dmftOrbsIndex(m1)
+      do a=1,noAtoms
+         do m1=1,norbPerAtom(a)
+            do s1=1,nspin
+              m1d = norb_dmft(a,m1)
 
-          ! This is -U_0 * n(m1,samespin)
-           exchange(m1d,m1d,s1) = exchange(m1d,m1d,s1)            &
-                        &       - uloc((m1d-1)*norb+m1d,(m1d-1)*norb+m1d,1,wend)*charge(m1d,s1)
+             ! This is -U_0 * n(m1,samespin)
+              exchange(m1d,m1d,s1) = exchange(m1d,m1d,s1)            &
+                           &       - uloc((m1d-1)*norb+m1d,(m1d-1)*norb+m1d,1,wend)*charge(m1d,s1)
 
-           do m2=1,norbPerAtom
-              m2d = dmftOrbsIndex(m2)
-              if (m2 /= m1) then
-                 ! this is -J * n(m2,samespin)
+               do m2=1,norbPerAtom(a)
+                  m2d = norb_dmft(a,m2)
+                 if (m2 /= m1) then
+                    ! this is -J * n(m2,samespin)
 
-                 exchange(m1d,m1d,s1) = exchange(m1d,m1d,s1)             &
-                &      - uloc((m1d-1)*norb+m2d,(m2d-1)*norb+m1d,1,wend) * charge(m2d,s1)
-              endif
-           enddo
-       enddo
-     enddo
+                    exchange(m1d,m1d,s1) = exchange(m1d,m1d,s1)             &
+                   &      - uloc((m1d-1)*norb+m2d,(m2d-1)*norb+m1d,1,wend) * charge(m2d,s1)
+                 endif
+              enddo ! m2
+          enddo ! s1
+        enddo ! m1
+     enddo ! a Atom loop
 
      deallocate( charge )
 
-     ! Now copy the stuff to the other equivalent atoms
-     do a=1,noEquivAtoms-1
-        do m1=1,norbPerAtom
-           m1d = dmftOrbsIndex(m1)
-           m2d = dmftOrbsIndex(a*norbPerAtom+m1d)
-
-           hartree( m2d,m2d,:)  = hartree(m1d,m1d,:)
-           exchange(m2d,m2d,:) = exchange(m1d,m1d,:)
-        enddo
-     enddo
 
    end subroutine get_hartree_fock
 
@@ -2519,77 +2589,77 @@ module matsfunc_ops
 !  == Calculate the local orbital levels from
 !  == Hyb = iw + mu_loc - Gimp^-1 - Sigma^-1
 !  ============================================================
-   subroutine get_loc_levels(mu_loc,gimp,uloc)
-      real(kr),intent(inout)  :: mu_loc(:,:,:)        ! norb,norb,nspin
-      complex(kr),intent(in)  :: gimp(:,:,:,:)        ! norb,norb,nspin,nomega
-      complex(kr),intent(in)     :: uloc(:,:,:,:)       ! norb**2,norb**2,nspin,nnu
-
-      integer(ki)    :: s,m1,m2,m,w
-      real(kr)       :: coeffs(5)
-      real(kr)       :: hartree(norb,norb,nspin)
-      real(kr)       :: exchange(norb,norb,nspin)
-      complex(8)     :: g_tmp(norb,norb)
-      complex(kr),allocatable :: gimpinv(:,:,:,:)        ! norb,norb,nspin,nomega
-
-  !   Lapack stuff
-      complex(8), dimension(norb) :: work  ! work array for LAPACK
-      integer, dimension(norb)    :: ipiv  ! pivot indices
-      integer :: info_lpck
-      external ZGETRF
-      external ZGETRI
-
-      allocate( gimpinv( norb,norb,nspin,nomega ) )
-
-      ! First invert Gimp for all spins and frequencies
-      do w=1,nomega
-         do s=1,nspin
-            g_tmp = gimp(:,:,s,w)
-
-            ! Then invert with LAPACK
-            call ZGETRF(norb, norb, g_tmp, norb, ipiv, info_lpck)
-            if (info_lpck /= 0) then
-               write(*,*)' ERROR: bath Greensfunction is numerically singular! Return value',&
-                         & info_lpck
-               stop 
-            end if
-            call ZGETRI(norb, g_tmp, norb, ipiv, work, norb, info_lpck)
-            if (info_lpck /= 0) then
-              stop 'Matrix inversion failed!'
-            end if
-
-            gimpinv(:,:,s,w) = g_tmp
-
-         enddo ! s
-      enddo ! w
-
-      ! get the hartree fock terms
-      call get_hartree_fock(hartree,exchange,gimp,uloc)
-
-      write(*,'(A)') ' Hartree-Fock calculated from Gloc for local mu-levels:'
-      do m1=1,norb
-         do s=1,nspin
-            write(*,'(A,I2,A,I2,A,F8.5)') 'orb=',m1,', s=',s,':',hartree(m1,m1,s) + exchange(m1,m1,s)
-         enddo
-      enddo
-
-      write(*,'(A)') ' c0 coeff. of Gimp^-1:'
-      do m1=1,norb
-         do m2=1,norb
-            do s=1,nspin
-               coeffs = get_highfreq_coeff(gimpinv(m1,m2,s,:),0)
-               if (m1==m2) then
-                  write(*,'(A,I2,A,I2,A,F8.5)') 'orb=',m1,', s=',s,': ',coeffs(1)
-               endif
-      
-               mu_loc(m1,m2,s) = coeffs(1) + hartree(m1,m2,s) + exchange(m1,m2,s)
-
-            enddo
-         enddo
-      enddo
-
-      deallocate( gimpinv )
-
-   end subroutine get_loc_levels
+!   subroutine get_loc_levels(mu_loc,gimp,uloc)
+!      real(kr),intent(inout)  :: mu_loc(:,:,:)        ! norb,norb,nspin
+!      complex(kr),intent(in)  :: gimp(:,:,:,:)        ! norb,norb,nspin,nomega
+!      complex(kr),intent(in)     :: uloc(:,:,:,:)       ! norb**2,norb**2,nspin,nnu
+!
+!      integer(ki)    :: s,m1,m2,m,w
+!      real(kr)       :: coeffs(5)
+!      real(kr)       :: hartree(norb,norb,nspin)
+!      real(kr)       :: exchange(norb,norb,nspin)
+!      complex(8)     :: g_tmp(norb,norb)
+!      complex(kr),allocatable :: gimpinv(:,:,:,:)        ! norb,norb,nspin,nomega
+!
+!  !   Lapack stuff
+!      complex(8), dimension(norb) :: work  ! work array for LAPACK
+!      integer, dimension(norb)    :: ipiv  ! pivot indices
+!      integer :: info_lpck
+!      external ZGETRF
+!      external ZGETRI
+!
+!      allocate( gimpinv( norb,norb,nspin,nomega ) )
+!
+!      ! First invert Gimp for all spins and frequencies
+!      do w=1,nomega
+!         do s=1,nspin
+!            g_tmp = gimp(:,:,s,w)
+!
+!            ! Then invert with LAPACK
+!            call ZGETRF(norb, norb, g_tmp, norb, ipiv, info_lpck)
+!            if (info_lpck /= 0) then
+!               write(*,*)' ERROR: bath Greensfunction is numerically singular! Return value',&
+!                         & info_lpck
+!               stop 
+!            end if
+!            call ZGETRI(norb, g_tmp, norb, ipiv, work, norb, info_lpck)
+!            if (info_lpck /= 0) then
+!              stop 'Matrix inversion failed!'
+!            end if
+!
+!            gimpinv(:,:,s,w) = g_tmp
+!
+!         enddo ! s
+!      enddo ! w
+!
+!      ! get the hartree fock terms
+!      call get_hartree_fock(hartree,exchange,gimp,uloc)
+!
+!      write(*,'(A)') ' Hartree-Fock calculated from Gloc for local mu-levels:'
+!      do m1=1,norb
+!         do s=1,nspin
+!            write(*,'(A,I2,A,I2,A,F8.5)') 'orb=',m1,', s=',s,':',hartree(m1,m1,s) + exchange(m1,m1,s)
+!         enddo
+!      enddo
+!
+!      write(*,'(A)') ' c0 coeff. of Gimp^-1:'
+!      do m1=1,norb
+!         do m2=1,norb
+!            do s=1,nspin
+!               coeffs = get_highfreq_coeff(gimpinv(m1,m2,s,:),0)
+!               if (m1==m2) then
+!                  write(*,'(A,I2,A,I2,A,F8.5)') 'orb=',m1,', s=',s,': ',coeffs(1)
+!               endif
+!      
+!               mu_loc(m1,m2,s) = coeffs(1) + hartree(m1,m2,s) + exchange(m1,m2,s)
+!
+!            enddo
+!         enddo
+!      enddo
+!
+!      deallocate( gimpinv )
+!
+!   end subroutine get_loc_levels
 
 !  ============================================================
 !  == Calculate the Hartree and Fock Doublecounting terms
@@ -2602,40 +2672,45 @@ module matsfunc_ops
       real(kr),intent(in)     :: hartree(:,:,:)          ! norb,norb,nspin
       real(kr),intent(in)     :: exchange(:,:,:)         ! norb,norb,nspin
 
-      integer(ki)  :: s,m
+      integer(ki)  :: s,m,a,i
       real(kr)     :: tmp
 
       hartree_dc  = (0.0_kr)
       exchange_dc = (0.0_kr)
 
       if ( avgHartreeFock == 1 ) then
-         write(*,'(A)') ' Average Hartree and Exchange Terms for DFT doublecounting (each spin seperately)...'
-
-         do s=1,nspin
-            ! Hartree
-            tmp = 0.0_kr
-            do m=1,norb_dmft
-               tmp = tmp + hartree(dmftOrbsIndex(m),dmftOrbsIndex(m),s)
+         write(*,'(A)') ' Average Hartree and Exchange Terms for DFT doublecounting (each spin and atom seperately)...'
+         do a=1,noAtoms
+   
+            do s=1,nspin
+               ! Hartree
+               tmp = 0.0_kr
+               do m=1,norbPerAtom(a)
+                  i = norb_dmft(a,m)
+                  tmp = tmp + hartree(i,i,s)
+               enddo
+               do m=1,norbPerAtom(a)
+                  i = norb_dmft(a,m)
+                  hartree_dc(i,i,s) = tmp/norbPerAtom(a)
+               enddo
+   
+               ! Exchange
+               tmp = 0.0_kr
+               do m=1,norbPerAtom(a)
+                  i = norb_dmft(a,m)
+                  tmp = tmp + exchange(i,i,s)
+               enddo
+               do m=1,norbPerAtom(a)
+                  i = norb_dmft(a,m)
+                  exchange_dc(i,i,s) = tmp/norbPerAtom(a)
+               enddo
             enddo
-            do m=1,norb_dmft
-               hartree_dc(dmftOrbsIndex(m),dmftOrbsIndex(m),s) = tmp/norb_dmft
-            enddo
-
-            ! Exchange
-            tmp = 0.0_kr
-            do m=1,norb_dmft
-               tmp = tmp + exchange(dmftOrbsIndex(m),dmftOrbsIndex(m),s)
-            enddo
-            do m=1,norb_dmft
-               exchange_dc(dmftOrbsIndex(m),dmftOrbsIndex(m),s) = tmp/norb_dmft
-            enddo
-         enddo
-
+         enddo ! a atom loop
       else
          hartree_dc  = hartree
          exchange_dc = exchange
       endif
-
+   
    end subroutine get_hartree_fock_dc
 
    
@@ -2649,7 +2724,7 @@ module matsfunc_ops
       real(kr),intent(in)       :: exchange(:,:,:)      ! norb,norb,nspin
       real(kr),intent(in)       :: exchange_dc(:,:,:)   ! norb,norb,nspin
 
-      integer(ki)             :: s1,m1,s2,m2,w
+      integer(ki)             :: s1,m1,s2,m2,w,a
       real(kr)                :: coeffs(5)
       real(kr),allocatable    :: exchange_to_use(:,:,:)      ! norb,norb,nspin
           
@@ -2685,21 +2760,23 @@ module matsfunc_ops
          exchange_to_use = exchange_dc
 !      endif
 
-     do s1=1,nspin
-        write(*,'((A6),(I1),A1,4X)',advance='no') ' Spin=',s1,':'
-        do m1=1,norb_dmft
-           m2 = dmftOrbsIndex(m1)
-
-           coeffs = get_highfreq_coeff( simp(m2,m2,s1,:) ,0)
-
-           write(*,'((F8.3),2X)',advance='no') hartree_dc(m2,m2,s1)+exchange_to_use(m2,m2,s1)
-           do w=1,nomega
-              simp(m2,m2,s1,w) = simp(m2,m2,s1,w) - coeffs(1)   &
-                             &   + hartree_dc(m2,m2,s1)+exchange_to_use(m2,m2,s1)
-           enddo
-        enddo
-        write(*,'(A1)') ' '
-      enddo
+      do a=1,noAtoms
+        do s1=1,nspin
+           write(*,'(A,I2,A,I1,A,4X)',advance='no') ' Atom=',a,', Spin=',s1,':'
+           do m1=1,norbPerAtom(a)
+              m2 = norb_dmft(a,m1)
+   
+              coeffs = get_highfreq_coeff( simp(m2,m2,s1,:) ,0)
+   
+              write(*,'((F8.3),2X)',advance='no') hartree_dc(m2,m2,s1)+exchange_to_use(m2,m2,s1)
+              do w=1,nomega
+                 simp(m2,m2,s1,w) = simp(m2,m2,s1,w) - coeffs(1)   &
+                                &   + hartree_dc(m2,m2,s1)+exchange_to_use(m2,m2,s1)
+              enddo
+           enddo ! m1
+           write(*,'(A1)') ' '
+         enddo ! s1
+      enddo ! a Atoms
 
       deallocate( exchange_to_use )
 
@@ -2714,27 +2791,30 @@ module matsfunc_ops
       complex(kr),intent(inout) :: s_gw_dc(:,:,:,:)     ! norb,norb,nspin,nomega
       real(kr),intent(in)       :: exchange(:,:,:)      ! norb,norb,nspin
 
-      integer(ki)             :: s1,m1,s2,m2,w
+      integer(ki)             :: s1,m1,s2,m2,w,a
       real(kr)                :: coeffs(5)
 
       if (useSigK/=0) then  ! otherwise we do LDA+DMFT and s_gw_dc is zero
-          do s1=1,nspin
-             do m1=1,norb_dmft
-                m2 = dmftOrbsIndex(m1)
+         do a=1,noAtoms
+            do s1=1,nspin
+               do m1=1,norbPerAtom(a)
+                  m2 = norb_dmft(a,m1)
 
-                coeffs = get_highfreq_coeff( s_gw_dc(m2,m2,s1,:) ,0)
+                  coeffs = get_highfreq_coeff( s_gw_dc(m2,m2,s1,:) ,0)
 
-                if ( abs(coeffs(1)-exchange(m2,m2,s1))>0.001 ) then
-                   write(*,'(A,I2,A,I2,A,(F8.4),A,(F8.4),A)') ' Exchange in the s_gw_dc for DMFT orbital ',m2,   &
-                                & ', spin ',s1, ' differs to DMFT exchange by ',                           &
-                                &  abs(coeffs(1)-exchange(m2,m2,s1)),' eV, readjust to ',exchange(m2,m2,s1),' eV'
-                   do w=1,nomega
-                      s_gw_dc(m2,m2,s1,w) = s_gw_dc(m2,m2,s1,w) - coeffs(1)   &
+                  if ( abs(coeffs(1)-exchange(m2,m2,s1))>0.001 ) then
+                     write(*,'(A,I2,A,I2,A,(F8.4),A,(F8.4),A)') ' Exchange in the s_gw_dc for DMFT orbital ',m2,   &
+                                 & ', spin ',s1, ' differs to DMFT exchange by ',                           &
+                                 &  abs(coeffs(1)-exchange(m2,m2,s1)),' eV, readjust to ',exchange(m2,m2,s1),' eV'
+                      do w=1,nomega
+                          s_gw_dc(m2,m2,s1,w) = s_gw_dc(m2,m2,s1,w) - coeffs(1)   &
                                       &   + exchange(m2,m2,s1)
-                   enddo
-                endif
-             enddo
-          enddo
+                      enddo ! w
+                   endif
+
+                enddo ! m1
+             enddo ! s1
+         enddo ! a Atoms
       endif ! (useSigK==1)
 
    end subroutine adjust_dc_to_exchange
@@ -3049,20 +3129,22 @@ module matsfunc_ops
 !  == Calculate the Monopole U(w) term from uloc
 !  ============================================================
    subroutine get_Uavg(Uavg,uloc)
-      complex(kr),intent(inout) :: Uavg(:)       ! nnu
+      complex(kr),intent(inout) :: Uavg(:,:)       ! noAtoms,nnu
       complex(kr),intent(in)    :: uloc(:,:,:,:) ! norb**2,norb**2,nspin,nnu
 
-      integer(ki) :: i,j,a,b
+      integer(ki) :: i,j,a,m1,m2
       complex(kr) :: tmp
 
       Uavg = (0.0_kr,0.0_kr)
-      do i=1,norbPerAtom
-         do j=1,norbPerAtom
-            a = dmftOrbsIndex(i)
-            b = dmftOrbsIndex(j)
-            Uavg = Uavg + uloc((a-1)*norb+a,(b-1)*norb+b,1,:)/norbPerAtom**2
-         enddo
-      enddo
+      do a=1,noAtoms
+         do m1=1,norbPerAtom(a)
+            do m2=1,norbPerAtom(a)
+               i = norb_dmft(a,m1)
+               j = norb_dmft(a,m2)
+               Uavg(a,:) = Uavg(a,:) + uloc((i-1)*norb+i,(j-1)*norb+j,1,:)/norbPerAtom(a)**2
+            enddo ! m2
+         enddo ! m1
+      enddo ! a
 
    end subroutine get_Uavg
 
@@ -3070,50 +3152,50 @@ module matsfunc_ops
 !  ============================================================
 !  == Correct ALPS Selfenergy
 !  ============================================================
-   subroutine correct_alps_simp(simp,Uavg)
-      complex(kr),intent(inout) :: simp(:,:,:,:)       ! norb,norb,nspin,nomega
-      real(kr),intent(in)       :: Uavg(:)        ! nnu
-      integer(ki)               :: w,m,m2,s
-      write(*,*) 'DO NOT USE correct_alps_simp !!!!!'
-      STOP 1
-
-      if (useUw/=0) then
-         write(*,'(A,F8.3)') '!!! We correct the ALPS selfenergy by -(U_bare-U(0)) =',( Uinput - Uavg(1) )
-         do m=1,norb_dmft
-            m2 = dmftOrbsIndex(m)
-            do s=1,nspin
-               do w=1,nomega
-                  simp(m2,m2,s,w) = simp(m2,m2,s,w) - ( Uinput - Uavg(1) )
-               enddo
-            enddo
-         enddo
-      endif
-   end subroutine correct_alps_simp
+!   subroutine correct_alps_simp(simp,Uavg)
+!      complex(kr),intent(inout) :: simp(:,:,:,:)       ! norb,norb,nspin,nomega
+!      real(kr),intent(in)       :: Uavg(:)        ! nnu
+!      integer(ki)               :: w,m,m2,s
+!      write(*,*) 'DO NOT USE correct_alps_simp !!!!!'
+!      STOP 1
+!
+!      if (useUw/=0) then
+!         write(*,'(A,F8.3)') '!!! We correct the ALPS selfenergy by -(U_bare-U(0)) =',( Uinput - Uavg(1) )
+!         do m=1,norb_dmft
+!            m2 = dmftOrbsIndex(m)
+!            do s=1,nspin
+!               do w=1,nomega
+!                  simp(m2,m2,s,w) = simp(m2,m2,s,w) - ( Uinput - Uavg(1) )
+!               enddo
+!            enddo
+!         enddo
+!      endif
+!   end subroutine correct_alps_simp
 
 !  ============================================================
 !  == Correct Selfenergy tail to HF from Gimp
 !  ============================================================
-   subroutine correct_simp_tail(simp,gimp,uloc)
-      complex(kr),intent(inout) :: simp(:,:,:,:)        ! norb,norb,nspin,nomega
-      complex(kr),intent(in)    :: gimp(:,:,:,:)        ! norb,norb,nspin,nomega
-      complex(kr),intent(in)       :: uloc(:,:,:,:)       ! norb**2,norb**2,nspin,nnu
-
-      integer(ki)    :: s,m1,m2,m,w
-      real(kr)       :: coeffs(5)
-      real(kr)       :: hartree(norb,norb,nspin)
-      real(kr)       :: exchange(norb,norb,nspin)
-
-      write(*,'(A)') '!!! We correct the ALPS selfenergy tail to HF !'
-      call get_hartree_fock(hartree,exchange,gimp,uloc)
-
-      do m=1,norb
-         do s=1,nspin
-            do w=nomega/3,nomega
-               simp(m,m,s,w) = simp(m,m,s,w) - real(simp(m,m,s,w)) + hartree(m,m,s) + exchange(m,m,s)
-            enddo
-         enddo
-      enddo
-   end subroutine correct_simp_tail
+!   subroutine correct_simp_tail(simp,gimp,uloc)
+!      complex(kr),intent(inout) :: simp(:,:,:,:)        ! norb,norb,nspin,nomega
+!      complex(kr),intent(in)    :: gimp(:,:,:,:)        ! norb,norb,nspin,nomega
+!      complex(kr),intent(in)       :: uloc(:,:,:,:)       ! norb**2,norb**2,nspin,nnu
+!
+!      integer(ki)    :: s,m1,m2,m,w
+!      real(kr)       :: coeffs(5)
+!      real(kr)       :: hartree(norb,norb,nspin)
+!      real(kr)       :: exchange(norb,norb,nspin)
+!
+!      write(*,'(A)') '!!! We correct the ALPS selfenergy tail to HF !'
+!      call get_hartree_fock(hartree,exchange,gimp,uloc)
+!
+!      do m=1,norb
+!         do s=1,nspin
+!            do w=nomega/3,nomega
+!               simp(m,m,s,w) = simp(m,m,s,w) - real(simp(m,m,s,w)) + hartree(m,m,s) + exchange(m,m,s)
+!            enddo
+!         enddo
+!      enddo
+!   end subroutine correct_simp_tail
 
 !  ==============================================================================================
 !  ==============================================================================================

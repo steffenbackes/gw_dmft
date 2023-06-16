@@ -77,7 +77,7 @@ module io_ops
       read(iounit,*) usePolK
       read(iounit,*) useUw
       read(iounit,*) DCtype
-      read(iounit,*) noEquivAtoms
+!      read(iounit,*) noEquivAtoms
       call read_dmft_orbitals(iounit)
 !      call read_degenerate_orbitals(iounit)
       read(iounit,*) orbSym
@@ -115,7 +115,7 @@ module io_ops
       write(*,'(A18,I2)') 'usePolK =',usePolK
       write(*,'(A18,I2)') 'useUw =',useUw
       write(*,'(A18,I2)') 'doublecounting =',DCtype
-      write(*,'(A18,I2)') 'no. equiv. atoms =',noEquivAtoms
+!      write(*,'(A18,I2)') 'no. equiv. atoms =',noEquivAtoms
       write(*,'(A18,I2)') 'orbital Symmetrie =',orbSym
       write(*,'(A18,I2)') 'bath method =',bathMethod
       write(*,'(A18,I2)') 'diagonalize bath =',diagBath
@@ -163,35 +163,44 @@ module io_ops
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       ! Print info about orbitals used in DMFT
-      write(*,'(A)') ' == Orbitals for DMFT: =========================================='
-      write(*,'(A,I2,A,I2,A)',advance='no') ' == ',norb_dmft,' orbitals out of ',norb,' are treated in DMFT: '
-      do i=1,norb_dmft-1
-         write(*,'(I2,A)',advance='no') dmftOrbsIndex(i),', '
+      ! First get total number of orbitals treated in DMFT
+      tmp = 0
+      do i=1,noAtoms
+         tmp = tmp + norbPerAtom(i)
       enddo
-      write(*,'(I2)') dmftOrbsIndex(norb_dmft)
+
+      write(*,'(A)') ' == Orbitals for DMFT: =========================================='
+      write(*,'(A,I2,A,I2,A,I2,A)') ' == ',noAtoms,' atoms and ',tmp,' of ',norb,' orbitals are treated in DMFT: '
+      do i=1,noAtoms
+         write(*,'(A,I2,A)',advance='no') 'Atom ',i,': '
+         do j=1,norbPerAtom(i)-1
+            write(*,'(I2,A)',advance='no') norb_dmft(i,j),', '
+         enddo
+         write(*,'(I2,A,I2,A)') norb_dmft(i,norbPerAtom(i)),' -> #',norbPerAtom(i),' orbitals'
+      enddo
 
       ! check if norb_dmft can be divided by noEquivAtoms
-      if ( mod(norb_dmft,noEquivAtoms)==0 ) then
-         norbPerAtom = norb_dmft/noEquivAtoms
-         write(*,'(A,I2,A)') ' == We have ',noEquivAtoms,' equivalent atoms, so we construct a'
-         write(*,'(A,I2,A)') ' == ',norbPerAtom,'-orbital impurity model for the orbitals:'
-         write(*,'(A)',advance='no') ' == '
-         do i=1,norbPerAtom-1
-            write(*,'(I2,A)',advance='no') dmftOrbsIndex(i),', '
-         enddo
-         write(*,'(I2)') dmftOrbsIndex(norbPerAtom)
+!      if ( mod(norb_dmft,noEquivAtoms)==0 ) then
+!         norbPerAtom = norb_dmft/noEquivAtoms
+!         write(*,'(A,I2,A)') ' == We have ',noEquivAtoms,' equivalent atoms, so we construct a'
+!         write(*,'(A,I2,A)') ' == ',norbPerAtom,'-orbital impurity model for the orbitals:'
+!         write(*,'(A)',advance='no') ' == '
+!         do i=1,norbPerAtom-1
+!            write(*,'(I2,A)',advance='no') dmftOrbsIndex(i),', '
+!         enddo
+!         write(*,'(I2)') dmftOrbsIndex(norbPerAtom)
 
-         do j=2,noEquivAtoms
-            write(*,'(A,I2,A)',advance='no') ' == and copy the impurity Selfenergy to atom ',j,' with orbitals: '
-            do i=1,norbPerAtom-1
-               write(*,'(I2,A)',advance='no') dmftOrbsIndex((j-1)*norbPerAtom+i),', '
-            enddo
-            write(*,'(I2)') dmftOrbsIndex((j-1)*norbPerAtom+norbPerAtom)
-         enddo
-      else
-         write(*,'(A)') 'ERROR: Number of DMFT orbitals cannot be devided by number of equiv. Atoms !!!'
-         stop 1
-      endif
+!         do j=2,noEquivAtoms
+!            write(*,'(A,I2,A)',advance='no') ' == and copy the impurity Selfenergy to atom ',j,' with orbitals: '
+!            do i=1,norbPerAtom-1
+!               write(*,'(I2,A)',advance='no') dmftOrbsIndex((j-1)*norbPerAtom+i),', '
+!            enddo
+!            write(*,'(I2)') dmftOrbsIndex((j-1)*norbPerAtom+norbPerAtom)
+!         enddo
+!      else
+!         write(*,'(A)') 'ERROR: Number of DMFT orbitals cannot be devided by number of equiv. Atoms !!!'
+!         stop 1
+!      endif
 
 !      write(*,'(A)') ' == -------------------------------------------------------------'
 !      ! Print info about degenerate orbitals
@@ -290,17 +299,21 @@ module io_ops
         use params
         integer,intent(in)  :: iounit
         character           :: singlec
-        integer(ki)         :: n,m,i, tmpi, justreadinteger
-        integer,allocatable :: intarray(:)
+        integer(ki)         :: n,m,i,j, tmpi, justreadinteger, noOrbPerAtomMax
+        integer,allocatable :: intarray(:,:), intatomarray(:)  ! temporary storage that works for every setup
 
+        noAtoms = 1
         ! Right now we are in the line in the dmft_input.dat file with the DMFT orbitals
 
         read(iounit,'(A)', advance='no') singlec
         justreadinteger = -1
         m=1
-        allocate( intarray(norb) )
+        allocate( intarray(norb,norb) )
+        allocate( intatomarray(norb) )
         intarray = (0)
-        norb_dmft = 0
+        intatomarray = (0)
+!        norb_dmft = 0
+        noOrbPerAtomMax = 0
 
         do while (singlec /= '#')
          ! we have read one character, and it's not #
@@ -312,11 +325,13 @@ module io_ops
             ! If we have just read an integer before without any separation,
             ! it must be something larger than 9, so add this
             if (justreadinteger == 1) then
-               intarray(m) = intarray(m)*10 + tmpi
+               intarray(noAtoms,m) = intarray(noAtoms,m)*10 + tmpi
             else
-               intarray(m) = tmpi
+               intarray(noAtoms,m) = tmpi
             endif
-            norb_dmft = m
+            intatomarray(noAtoms) = m
+
+            if (m>noOrbPerAtomMax) noOrbPerAtomMax = m
 
             justreadinteger = 1
 
@@ -327,6 +342,12 @@ module io_ops
 
             ! now we can reset this
             justreadinteger = -1
+
+            ! Did we encounter a new atom? Then actually reset the atom counter
+            if (singlec == ':') then
+               noAtoms = noAtoms+1
+               m = 1
+            endif
          endif
 
          ! Read the next character in the line anbd repeat
@@ -336,26 +357,28 @@ module io_ops
         ! finish line for next read
         read(iounit,'(A)')
 
-        ! Check if more orbitals are specified than provided by the GW/DFT input
-        if (norb_dmft>norb) then
-           write(*,'(A)') "ERROR: More DMFT orbitals specified than available !!!"
-           stop 1
-        endif
-        ! Check if there are at least one orbital
-        if (norb_dmft==0) then
-           write(*,'(A)') "ERROR: No orbitals specified for DMFT !!!"
-           stop 1
-        endif
-        ! check if all orbitals actually exist
-        do n=1,norb_dmft
-           if ( intarray(n)>norb .or. intarray(n)<=0 ) then
-              write(*,'(A,I3,A)') "ERROR: Specified correlated orbital ",intarray(n)," does not exist !!!"
-              stop 1
-           endif
-        enddo
+!        ! Check if more orbitals are specified than provided by the GW/DFT input
+!        if (norb_dmft>norb) the
+!           write(*,'(A)') "ERROR: More DMFT orbitals specified than available !!!"
+!           stop 1
+!        endif
+!        ! Check if there are at least one orbital
+!        if (norb_dmft==0) then
+!           write(*,'(A)') "ERROR: No orbitals specified for DMFT !!!"
+!           stop 1
+!        endif
+!        ! check if all orbitals actually exist
+!        do n=1,norb_dmft
+!           if ( intarray(n)>norb .or. intarray(n)<=0 ) then
+!              write(*,'(A,I3,A)') "ERROR: Specified correlated orbital ",intarray(n)," does not exist !!!"
+!              stop 1
+!           endif
+!        enddo
 
         ! allocate and copy into proper array
-        allocate( dmftOrbsIndex( norb_dmft ) )
+!        allocate( dmftOrbsIndex( norb_dmft ) )
+        allocate( norbPerAtom(noAtoms) )
+        allocate( norb_dmft(noAtoms,noOrbPerAtomMax) )
 
       !  ! first sort the array by doing a stupid loop from 1 to norbs (maximum number possible)
       !  ! this scales as norb*norb_dmft, which is bad but doesnt matter
@@ -369,8 +392,20 @@ module io_ops
       !     enddo
       !  enddo
 
-        dmftOrbsIndex = intarray(1:norb_dmft)
-        deallocate( intarray )
+         norbPerAtom = intatomarray(1:noAtoms)
+         do i=1,noAtoms
+            do j=1,norbPerAtom(i)
+               norb_dmft(i,j) = intarray(i,j)
+
+              if (norb_dmft(i,j)>norb) then
+                 write(*,'(A,I2,A)') "ERROR: More DMFT orbitals specified for atom ",i," than available !!!"
+                 stop 1
+               endif
+            enddo ! j
+         enddo ! i
+
+         deallocate( intarray )
+         deallocate( intatomarray )
 
       !  ! check if the user specified an orbital twice
       !  do n=2,norb_dmft
@@ -955,219 +990,181 @@ module io_ops
       deallocate(readindata)
    end subroutine read_loc_matsfunc_matrix
 
-!  ============================================================
-!  == Read a local Matsubara function from file, from the DMFT solver
-!  == Read only norbPerAtom orbitals !!!
-!  == Copy to the other equiv. atoms when necessary
-!  ============================================================
-   subroutine read_loc_matsfunc_solver(filename,f)
-      use params
-      character(len=*), intent(in) :: filename
-      complex(kr),intent(inout)    :: f(:,:,:,:)  ! norb,norb,nspin,nomega
-
-      integer(ki) :: w,s,m,a
-      integer(ki),parameter :: iounit = 10
-      real(kr)              :: readindata(1+2*nspin*norbPerAtom) ! temparray for readin
-      complex(kr)           :: tmp
-
-      f = (0.0_kr, 0.0_kr)
-      open(unit=iounit,file=filename,status="old")
-      do w=1,size(f(1,1,1,:))
-         read(iounit,*) readindata
-         do s=0,nspin-1
-            do m=0,norbPerAtom-1
-              ! For the impsolver, spins run first, then orbitals!
-              f(dmftOrbsIndex(m+1),dmftOrbsIndex(m+1),s+1,w)          &
-                      &        = readindata(1+m*nspin*2+s*2+1) + ci*readindata(1+m*nspin*2+s*2+2)
-
-                 ! Do sanity check
-                 if ( isnan_c( f(dmftOrbsIndex(m+1),dmftOrbsIndex(m+1),s+1,w) ) ) then
-                    write(*,'(A,A)') "ERROR: Encountered NaN when reading solver output !!!"
-                    stop 1
-                 endif 
-
-            enddo
-
-            ! now copy to the other equivalent atoms
-            do a=1,noEquivAtoms-1
-               do m=1,norbPerAtom
-                   f( dmftOrbsIndex(a*norbPerAtom+m), dmftOrbsIndex(a*norbPerAtom+m) ,s+1,w)   &
-                                   &  = f( dmftOrbsIndex(m),dmftOrbsIndex(m) ,s+1,w)
-               enddo
-            enddo
-
-         enddo ! s lopp
-      enddo ! w loop
-      close(iounit)
-   end subroutine read_loc_matsfunc_solver
 
 !  ============================================================
 !  == Read a local Matsubara function from file, from the DMFT solver
 !  == Read only norbPerAtom orbitals !!!
-!  == Copy to the other equiv. atoms when necessary
 !  ============================================================
    subroutine read_loc_matsfunc_matrix_solver(filename,f)
       use params
       character(len=*), intent(in) :: filename
       complex(kr),intent(inout)    :: f(:,:,:,:)  ! norb,norb,nspin,nomega
 
-      integer(ki) :: w,s,m1,m2,a
-      integer(ki),parameter :: iounit = 10
-      real(kr)              :: readindata(1+2*nspin*norbPerAtom*norbPerAtom) ! temparray for readin
-      complex(kr)           :: tmp, Ftmp(norbPerAtom,norbPerAtom,nspin)
+      integer(ki) :: w,s,m1,m2,a, i,j
+      integer(ki),parameter   :: iounit = 10
+      real(kr),allocatable    :: readindata(:) ! temparray for readin
+      complex(kr)             :: tmp
+      character(len=1024)     :: imppath
 
-      write(*,'(A,A)') 'Read solver output ',filename
       ! Do not overwrite the full matrix !!!
       ! f = (0.0_kr, 0.0_kr)
-      open(unit=iounit,file=filename,status="old")
+      do a=1,noAtoms
+
+         if (a<10)  then
+            write(imppath, "(A,I1,A,A)") "imp",a,"/",filename
+         else
+            write(imppath, "(A,I2,A,A)") "imp",a,"/",filename    ! we assume there are less than 100 atoms
+         endif
+ 
+         write(*,'(A,A,A)') "Reading file ",trim(imppath)," ..."
+         open(unit=iounit,file=trim(imppath),status="old")
+
+         allocate( readindata(1+2*nspin*norbPerAtom(a)) )   
+
+         do w=1,size(f(1,1,1,:))
+            read(iounit,*) readindata
+            do s=0,nspin-1
+               do m1=0,norbPerAtom(a)-1
+                  do m2=0,norbPerAtom(a)-1
+                    i = norb_dmft(a,m1+1)
+                    j = norb_dmft(a,m2+1)
+                    f(i,j,s+1,w) = readindata(1 + s*norbPerAtom(a)**2*2 + m1*norbPerAtom(a)*2 + m2*2 + 1)  &
+                             & +ci*readindata(1 + s*norbPerAtom(a)**2*2 + m1*norbPerAtom(a)*2 + m2*2 + 2)
+
+                    ! Do sanity check
+                    if ( isnan_c(f(i,j,s+1,w)) ) then
+                       write(*,'(A,A)') "ERROR: Encountered NaN when reading solver output !!!"
+                       stop 1
+                    endif
+
+                  enddo ! m2
+               enddo ! m1
+
+            enddo ! s
+         enddo ! w
+         deallocate(readindata)
+         close(iounit)
+      enddo ! a atom loop
+
+     ! Now transform back, this also works when we don't want to transform, since Utrafo = identity
       do w=1,size(f(1,1,1,:))
-         read(iounit,*) readindata
-         do s=0,nspin-1
-            do m1=0,norbPerAtom-1
-               do m2=0,norbPerAtom-1
-                 Ftmp(m1+1,m2+1,s+1) = readindata(1 + s*norbPerAtom**2*2 + m1*norbPerAtom*2 + m2*2 + 1)  &
-                                 & +ci*readindata(1 + s*norbPerAtom**2*2 + m1*norbPerAtom*2 + m2*2 + 2)
+         do s=1,nspin
+           f(:,:,s,w) = matmul( Utrafo(:,:,s), matmul( f(:,:,s,w), UtrafoT(:,:,s) ) )
+         enddo
+      enddo
 
-                 ! Do sanity check
-                 if ( isnan_c(Ftmp(m1+1,m2+1,s+1)) ) then
-                    write(*,'(A,A)') "ERROR: Encountered NaN when reading solver output !!!"
-                    stop 1
-                 endif
-
-               enddo ! m2 
-            enddo ! m1
-
-            ! Now transform back, this also works when we don't want to transform, since Utrafo = identity
-            m1 = dmftOrbsIndex(1)
-            m2 = dmftOrbsIndex(norbPerAtom)
-
-            f(m1:m2,m1:m2,s+1,w) = matmul( Utrafo(:,:,s+1), matmul( Ftmp(:,:,s+1), UtrafoT(:,:,s+1) ) )
-
-            ! now copy to the other equivalent atoms
-            do a=1,noEquivAtoms-1
-               do m1=1,norbPerAtom
-                  do m2=1,norbPerAtom
-                      f( dmftOrbsIndex(a*norbPerAtom+m1), dmftOrbsIndex(a*norbPerAtom+m2) ,s+1,w)   &
-                                      &  = f( dmftOrbsIndex(m1),dmftOrbsIndex(m2) ,s+1,w)
-                  enddo
-               enddo 
-            enddo ! a loop
-
-         enddo ! s lopp
-      enddo ! w loop
-      close(iounit)
    end subroutine read_loc_matsfunc_matrix_solver
 
 !  ============================================================
 !  == Read a local Matsubara function from file, from the DMFT solver
 !  == THIS IS FOR A 3D HUBBARD CUBE WITHIN THE DIMER APPROXIMATION
 !  ============================================================
-   subroutine read_loc_matsfunc_matrix_solver_dimercube(filename,f)
-      use params
-      character(len=*), intent(in) :: filename
-      complex(kr),intent(inout)    :: f(:,:,:,:)  ! norb,norb,nspin,nomega
-
-      integer(ki) :: w,s,m1,m2,a
-      integer(ki),parameter :: iounit = 10
-      real(kr)              :: readindata(1+2*nspin*norbPerAtom*norbPerAtom) ! temparray for readin
-      complex(kr)           :: tmp, Ftmp(norbPerAtom,norbPerAtom,nspin)
-
-      ! Just read and OVERWRITE the diagonal components!
-      ! In this case we leave all other elements as they are
-      ! Because in Gimp the non-DMFT orbitals will be equal to
-      ! Gloc, so we dont want to set them to zero
-      ! But be careful to initialize everything correctly
-
-      write(*,'(A,A)') 'Read solver output ',filename
-      ! f = (0.0_kr, 0.0_kr)
-      open(unit=iounit,file=filename,status="old")
-      do w=1,size(f(1,1,1,:))
-         read(iounit,*) readindata
-         do s=0,nspin-1
-            do m1=0,norbPerAtom-1
-               do m2=0,norbPerAtom-1
-                 ! For the impsolver, spins run first, then orbitals!
-                 Ftmp(m1+1,m2+1,s+1) = readindata(1+m1*norbPerAtom*nspin*2+m2*nspin*2+s*2+1)  &
-                                 & +ci*readindata(1+m1*norbPerAtom*nspin*2+m2*nspin*2+s*2+2)
-
-               enddo ! m2 
-            enddo ! m1
-
-            ! Now transform back
-            m1 = dmftOrbsIndex(1)
-            m2 = dmftOrbsIndex(norbPerAtom)
-
-            f(m1:m2,m1:m2,s+1,w) = matmul( Utrafo(:,:,s+1), matmul( Ftmp(:,:,s+1), UtrafoT(:,:,s+1) ) )
-
-
-         enddo ! s loop
-
-         ! now copy to the other equivalent atoms
-
-         ! ONSITE TERMS
-         do m1=1,2
-            do m2=1,2
-               do s=1,2
-
-                  ! A site            
-                  f( m1+6,m2+6,s,w)   = f( m1,m2 ,s,w)
-                  f( m1+10,m2+10,s,w) = f( m1,m2 ,s,w)
-                  f( m1+12,m2+12,s,w) = f( m1,m2 ,s,w)
-
-                  ! B site
-                  f( m1+4,m2+4,s,w)   = f( m1+2,m2+2 ,s,w)
-                  f( m1+8,m2+8,s,w)   = f( m1+2,m2+2 ,s,w)
-                  f( m1+14,m2+14,s,w) = f( m1+2,m2+2 ,s,w)
-
-               enddo
-            enddo 
-         enddo 
-
-         ! Intersite TERMS
-         do m1=1,2
-            do m2=1,2
-               do s=1,2
-
-                  f( m1+0,m2+4,s,w) = f( m1+0,m2+2 ,s,w)
-                  f( m1+4,m2+0,s,w) = f( m1+2,m2+0 ,s,w)
-
-                  f( m1+0,m2+8,s,w) = f( m1+0,m2+2 ,s,w)
-                  f( m1+8,m2+0,s,w) = f( m1+2,m2+0 ,s,w)
-
-                  f( m1+6,m2+2,s,w) = f( m1+0,m2+2 ,s,w)
-                  f( m1+2,m2+6,s,w) = f( m1+2,m2+0 ,s,w)
-
-                  f( m1+10,m2+2,s,w) = f( m1+0,m2+2 ,s,w)
-                  f( m1+2,m2+10,s,w) = f( m1+2,m2+0 ,s,w)
-
-                  f( m1+6,m2+4,s,w) = f( m1+0,m2+2 ,s,w)
-                  f( m1+4,m2+6,s,w) = f( m1+2,m2+0 ,s,w)
-
-                  f( m1+12,m2+4,s,w) = f( m1+0,m2+2 ,s,w)
-                  f( m1+4,m2+12,s,w) = f( m1+2,m2+0 ,s,w)
-
-                  f( m1+6,m2+14,s,w) = f( m1+0,m2+2 ,s,w)
-                  f( m1+14,m2+6,s,w) = f( m1+2,m2+0 ,s,w)
-
-                  f( m1+10,m2+8,s,w) = f( m1+0,m2+2 ,s,w)
-                  f( m1+8,m2+10,s,w) = f( m1+2,m2+0 ,s,w)
-
-                  f( m1+12,m2+8,s,w) = f( m1+0,m2+2 ,s,w)
-                  f( m1+8,m2+12,s,w) = f( m1+2,m2+0 ,s,w)
-
-                  f( m1+10,m2+14,s,w) = f( m1+0,m2+2 ,s,w)
-                  f( m1+14,m2+10,s,w) = f( m1+2,m2+0 ,s,w)
-
-                  f( m1+12,m2+14,s,w) = f( m1+0,m2+2 ,s,w)
-                  f( m1+14,m2+12,s,w) = f( m1+2,m2+0 ,s,w)
-
-               enddo
-            enddo 
-         enddo 
-
-      enddo ! w loop
-      close(iounit)
-   end subroutine read_loc_matsfunc_matrix_solver_dimercube
+!   subroutine read_loc_matsfunc_matrix_solver_dimercube(filename,f)
+!      use params
+!      character(len=*), intent(in) :: filename
+!      complex(kr),intent(inout)    :: f(:,:,:,:)  ! norb,norb,nspin,nomega
+!
+!      integer(ki) :: w,s,m1,m2,a
+!      integer(ki),parameter :: iounit = 10
+!      real(kr)              :: readindata(1+2*nspin*norbPerAtom*norbPerAtom) ! temparray for readin
+!      complex(kr)           :: tmp, Ftmp(norbPerAtom,norbPerAtom,nspin)
+!
+!      ! Just read and OVERWRITE the diagonal components!
+!      ! In this case we leave all other elements as they are
+!      ! Because in Gimp the non-DMFT orbitals will be equal to
+!      ! Gloc, so we dont want to set them to zero
+!      ! But be careful to initialize everything correctly
+!
+!      write(*,'(A,A)') 'Read solver output ',filename
+!      ! f = (0.0_kr, 0.0_kr)
+!      open(unit=iounit,file=filename,status="old")
+!      do w=1,size(f(1,1,1,:))
+!         read(iounit,*) readindata
+!         do s=0,nspin-1
+!            do m1=0,norbPerAtom-1
+!               do m2=0,norbPerAtom-1
+!                 ! For the impsolver, spins run first, then orbitals!
+!                 Ftmp(m1+1,m2+1,s+1) = readindata(1+m1*norbPerAtom*nspin*2+m2*nspin*2+s*2+1)  &
+!                                 & +ci*readindata(1+m1*norbPerAtom*nspin*2+m2*nspin*2+s*2+2)
+!
+!               enddo ! m2 
+!            enddo ! m1
+!
+!            ! Now transform back
+!            m1 = dmftOrbsIndex(1)
+!            m2 = dmftOrbsIndex(norbPerAtom)
+!
+!            f(m1:m2,m1:m2,s+1,w) = matmul( Utrafo(:,:,s+1), matmul( Ftmp(:,:,s+1), UtrafoT(:,:,s+1) ) )
+!
+!
+!         enddo ! s loop
+!
+!         ! now copy to the other equivalent atoms
+!
+!         ! ONSITE TERMS
+!         do m1=1,2
+!            do m2=1,2
+!               do s=1,2
+!
+!                  ! A site            
+!                  f( m1+6,m2+6,s,w)   = f( m1,m2 ,s,w)
+!                  f( m1+10,m2+10,s,w) = f( m1,m2 ,s,w)
+!                  f( m1+12,m2+12,s,w) = f( m1,m2 ,s,w)
+!
+!                  ! B site
+!                  f( m1+4,m2+4,s,w)   = f( m1+2,m2+2 ,s,w)
+!                  f( m1+8,m2+8,s,w)   = f( m1+2,m2+2 ,s,w)
+!                  f( m1+14,m2+14,s,w) = f( m1+2,m2+2 ,s,w)
+!
+!               enddo
+!            enddo 
+!         enddo 
+!
+!         ! Intersite TERMS
+!         do m1=1,2
+!            do m2=1,2
+!               do s=1,2
+!
+!                  f( m1+0,m2+4,s,w) = f( m1+0,m2+2 ,s,w)
+!                  f( m1+4,m2+0,s,w) = f( m1+2,m2+0 ,s,w)
+!
+!                  f( m1+0,m2+8,s,w) = f( m1+0,m2+2 ,s,w)
+!                  f( m1+8,m2+0,s,w) = f( m1+2,m2+0 ,s,w)
+!
+!                  f( m1+6,m2+2,s,w) = f( m1+0,m2+2 ,s,w)
+!                  f( m1+2,m2+6,s,w) = f( m1+2,m2+0 ,s,w)
+!
+!                  f( m1+10,m2+2,s,w) = f( m1+0,m2+2 ,s,w)
+!                  f( m1+2,m2+10,s,w) = f( m1+2,m2+0 ,s,w)
+!
+!                  f( m1+6,m2+4,s,w) = f( m1+0,m2+2 ,s,w)
+!                  f( m1+4,m2+6,s,w) = f( m1+2,m2+0 ,s,w)
+!
+!                  f( m1+12,m2+4,s,w) = f( m1+0,m2+2 ,s,w)
+!                  f( m1+4,m2+12,s,w) = f( m1+2,m2+0 ,s,w)
+!
+!                  f( m1+6,m2+14,s,w) = f( m1+0,m2+2 ,s,w)
+!                  f( m1+14,m2+6,s,w) = f( m1+2,m2+0 ,s,w)
+!
+!                  f( m1+10,m2+8,s,w) = f( m1+0,m2+2 ,s,w)
+!                  f( m1+8,m2+10,s,w) = f( m1+2,m2+0 ,s,w)
+!
+!                  f( m1+12,m2+8,s,w) = f( m1+0,m2+2 ,s,w)
+!                  f( m1+8,m2+12,s,w) = f( m1+2,m2+0 ,s,w)
+!
+!                  f( m1+10,m2+14,s,w) = f( m1+0,m2+2 ,s,w)
+!                  f( m1+14,m2+10,s,w) = f( m1+2,m2+0 ,s,w)
+!
+!                  f( m1+12,m2+14,s,w) = f( m1+0,m2+2 ,s,w)
+!                  f( m1+14,m2+12,s,w) = f( m1+2,m2+0 ,s,w)
+!
+!               enddo
+!            enddo 
+!         enddo 
+!
+!      enddo ! w loop
+!      close(iounit)
+!   end subroutine read_loc_matsfunc_matrix_solver_dimercube
 
 !  ============================================================
 !  == Read the frequency dependent density-density part of U(w)
@@ -1212,8 +1209,8 @@ module io_ops
       ! check the layout of the solver output, spins or orbitals first?
 
       if ( useUw/=0 .and. usePolK/=0 ) then
-         if (norbPerAtom>1) then
-            stop "ERROR: read_wimp_pimp not implemented for norbPerAtom>1 !"
+         if ( noAtoms>1 .or.  norbPerAtom(1)>1) then
+            stop "ERROR: read_wimp_pimp not implemented for norbPerAtom>1 or noAtoms>1 !"
          endif
       
           ! First get Chi(0)
@@ -1255,11 +1252,11 @@ module io_ops
 
          ! now copy to other atom ; We still assume norbPerAtom==1
          ! AND WE only replace the diagonals
-         do m=2,noEquivAtoms
-             m2 = dmftOrbsIndex(m)-1
-             pimp(m2*norb+m2+1,m2*norb+m2+1,:,:) = pimp(1,1,:,:)
-             wimp(m2*norb+m2+1,m2*norb+m2+1,:,:) = wimp(1,1,:,:)
-         enddo
+!         do m=2,noEquivAtoms
+!             m2 = dmftOrbsIndex(m)-1
+!             pimp(m2*norb+m2+1,m2*norb+m2+1,:,:) = pimp(1,1,:,:)
+!             wimp(m2*norb+m2+1,m2*norb+m2+1,:,:) = wimp(1,1,:,:)
+!         enddo
 
        endif
 
@@ -1928,48 +1925,48 @@ do ik=0,nkx/2 + nky/2 + nky/2 + nkz/2
 !  == Check offdiagonal elements of local matsubara function on
 !  == a single DMFT atom of size norbPerAtom x norbPerAtom
 !  ============================================================
-   subroutine check_offdiagonal_dmftatom(myname,f)
-      use params
-      character(len=*), intent(in) :: myname
-      complex(kr),intent(in) :: f(:,:,:,:)  ! norb,norb,nspin,nomega
-      integer                :: w,s,m1,m2,a1,a2
-      integer                :: mw,ms,mm1,mm2      ! indices for overall maximum
-      real(kr)               :: maxitem
-      maxitem=0.0_kr
-      mw = -1
-      ms = -1
-      mm1 = -1
-      mm2 = -1
-
-      do w=1,nomega
-         do s=1,nspin
-            do m1=1,norbPerAtom
-               do m2=1,norbPerAtom
-                  ! check the maximum
-                  if (m1/=m2 .and. maxitem<abs(f( dmftOrbsIndex(m1), dmftOrbsIndex(m2), s,w)) ) then
-                     maxitem = abs(f( dmftOrbsIndex(m1), dmftOrbsIndex(m2), s,w))
-                     mw = w
-                     ms = s
-                     mm1 = m1
-                     mm2 = m2
-                  endif
-               enddo
-            enddo
-         enddo
-      enddo
-
-      ! Print info about general maximum
-      if ( maxitem>0.001_kr ) then
-         write(*,'(A)') '============================================================='
-         write(*,'(A,A,A)') 'WARNING: Offdiagonal elements in ',myname,' ON THE DMFT ATOM are not zero!!!'
-         write(*,'(A17,I3,A4,I3,A5,I3,A5,I3,A,2F7.3,A)') 'Max.element at n=', &
-                        &     mw,', s=',ms,', m1=',mm1,', m2=',mm2,': (',f(dmftOrbsIndex(mm1),dmftOrbsIndex(mm2),ms,mw), ')'
-         write(*,'(A,I2,A,I2,A)') '(Between the global orbital ',dmftOrbsIndex(mm1),      &
-                               &  ' and ',dmftOrbsIndex(mm2),' )'
-         write(*,'(A)') '============================================================='
-      endif
-
-   end subroutine check_offdiagonal_dmftatom
+!   subroutine check_offdiagonal_dmftatom(myname,f)
+!      use params
+!      character(len=*), intent(in) :: myname
+!      complex(kr),intent(in) :: f(:,:,:,:)  ! norb,norb,nspin,nomega
+!      integer                :: w,s,m1,m2,a1,a2
+!      integer                :: mw,ms,mm1,mm2      ! indices for overall maximum
+!      real(kr)               :: maxitem
+!      maxitem=0.0_kr
+!      mw = -1
+!      ms = -1
+!      mm1 = -1
+!      mm2 = -1
+!
+!      do w=1,nomega
+!         do s=1,nspin
+!            do m1=1,norbPerAtom(1)
+!               do m2=1,norbPerAtom(1)
+!                  ! check the maximum
+!                  if (m1/=m2 .and. maxitem<abs(f( dmftOrbsIndex(m1), dmftOrbsIndex(m2), s,w)) ) then
+!                     maxitem = abs(f( dmftOrbsIndex(m1), dmftOrbsIndex(m2), s,w))
+!                     mw = w
+!                     ms = s
+!                     mm1 = m1
+!                     mm2 = m2
+!                  endif
+!               enddo
+!            enddo
+!         enddo
+!      enddo
+!
+!      ! Print info about general maximum
+!      if ( maxitem>0.001_kr ) then
+!         write(*,'(A)') '============================================================='
+!         write(*,'(A,A,A)') 'WARNING: Offdiagonal elements in ',myname,' ON THE DMFT ATOM are not zero!!!'
+!         write(*,'(A17,I3,A4,I3,A5,I3,A5,I3,A,2F7.3,A)') 'Max.element at n=', &
+!                        &     mw,', s=',ms,', m1=',mm1,', m2=',mm2,': (',f(dmftOrbsIndex(mm1),dmftOrbsIndex(mm2),ms,mw), ')'
+!         write(*,'(A,I2,A,I2,A)') '(Between the global orbital ',dmftOrbsIndex(mm1),      &
+!                               &  ' and ',dmftOrbsIndex(mm2),' )'
+!         write(*,'(A)') '============================================================='
+!      endif
+!
+!   end subroutine check_offdiagonal_dmftatom
 
 
 !  ============================================================
@@ -2009,13 +2006,15 @@ do ik=0,nkx/2 + nky/2 + nky/2 + nkz/2
       character(len=*), intent(in) :: filename
 
       integer(ki),parameter :: iounit = 10
-      integer(ki)           :: s1,s2,i,j,k,l, nUelem, n, m1,m2
+      integer(ki)           :: s1,s2,i,j,k,l, nUelem, n, m1,m2,  ndim
       real(kr)              :: smallestUval = 0.00001
+
+      ndim = int(sqrt(1.0*size(Uijkl(:,1,1,1))))
 
       ! First count nonzero elements
       nUelem = 0
-      do i=1,norbPerAtom**2
-         do j=1,norbPerAtom**2
+      do i=1,ndim**2
+         do j=1,ndim**2
             do s1=1,nspin
                do s2=1,nspin
 
@@ -2025,30 +2024,30 @@ do ik=0,nkx/2 + nky/2 + nky/2 + nkz/2
             enddo ! s1
          enddo ! j
       enddo ! i
-      write(*,'(A,I4,A)') 'Found ',nUelem,' nonzero Uijkl elements!'
 
+      write(*,'(A,I5,A,A)') ' Writing Uijkl matrix (#',nUelem,' elements) into ',filename
       open(unit=iounit,file=filename,status="unknown")
       write(iounit,'(I4)') nUelem
 
       n = 0
-      do i=0,norbPerAtom-1
-         do j=0,norbPerAtom-1
-            do k=0,norbPerAtom-1
-               do l=0,norbPerAtom-1
+      do i=0,ndim-1
+         do j=0,ndim-1
+            do k=0,ndim-1
+               do l=0,ndim-1
                   do s1=0,nspin-1
                      do s2=0,nspin-1
 
-                        m1 = i*norbPerAtom+j
-                        m2 = l*norbPerAtom+k   ! different order for ALPS Cthyb: l<->k
+                        m1 = i*ndim+j
+                        m2 = l*ndim+k   ! different order for ALPS Cthyb: l<->k
 
                         if ( abs(Uijkl(m1+1,m2+1,s1+1,s2+1)) > smallestUval ) then
                            write(iounit,'(5(I4,2X),2(F14.10,3X))') n, 2*i+s1, 2*j+s2, 2*k+s2, 2*l+s1,  &
-                                      &  real( Uijkl(m1+1,m2+1,s1+1,s2+1) ) ,                             &
-                                      & aimag( Uijkl(m1+1,m2+1,s1+1,s2+1) )                               
-             
+                                   &  real( Uijkl(m1+1,m2+1,s1+1,s2+1) ) ,                             &
+                                   & aimag( Uijkl(m1+1,m2+1,s1+1,s2+1) )                               
+          
                            n = n+1
                         endif
-  
+
                      enddo ! s2
                   enddo ! s1
                enddo ! l
@@ -2061,38 +2060,237 @@ do ik=0,nkx/2 + nky/2 + nky/2 + nkz/2
    end subroutine write_Uijkl_matrix_solver
 
 !  ============================================================
+!  == Write the umatrix for the hyb-segment solver
+!  ============================================================
+   subroutine write_umatrix_segment(Uijkl,filename)
+      use params
+      complex(kr),intent(in) :: Uijkl(:,:,:,:)        ! norbPerAtom**2,norbPerAtom**2,nspin,nspin
+      character(len=*), intent(in) :: filename
+
+      real(kr)    :: Uval
+      integer(ki) :: ndim,m1,m2,s1,s2, umatrix_out=10
+
+      open(unit=umatrix_out,file=filename,status="unknown")
+
+      ndim = int(sqrt(1.0*size(Uijkl(:,1,1,1))))
+      do m1=1,ndim
+         do s1=1,nspin
+            do m2=1,ndim
+               do s2=1,nspin
+ 
+                  Uval = real( Uijkl((m1-1)*ndim+m2,(m1-1)*ndim+m2,1,1) )   ! U, U'
+                  if (m1/=m2 .and. s1==s2) then
+                     Uval = Uval - real( Uijkl((m1-1)*ndim+m2,(m2-1)*ndim+m1,1,1) ) ! U'-J
+                  endif
+ 
+                  write(umatrix_out,'((F10.5),(4X))',advance='no') Uval
+ 
+               enddo ! s2
+            enddo ! m2
+            write(umatrix_out,'(A1)') ' '
+         enddo ! s1
+      enddo ! m1
+
+     close(umatrix_out)
+
+   end subroutine write_umatrix_segment
+
+!  ============================================================
+!  == Write the local impurity levels
+!  ============================================================
+   subroutine write_muloc_solver(mu_loc,filename)
+      use params
+      complex(kr),intent(in)       :: mu_loc(:,:,:)        ! norbPerAtom,norbPerAtom,nspin
+      character(len=*), intent(in) :: filename
+
+      integer(ki) :: ndim, m1,m2,s1,s2, mu_out=10,mu_matrix_out=11,mu_matrix_solver_out=12
+
+      open(unit=mu_out,file=filename//"_vector.dat",status="unknown")
+      open(unit=mu_matrix_out,file=filename//"_matrix.dat",status="unknown")
+      open(unit=mu_matrix_solver_out,file=filename//"_matrix_solver.dat",status="unknown")
+
+      ndim = int(size(mu_loc(:,1,1)))
+      do m1=1,ndim
+         do s1=1,nspin
+            write(mu_out,'((F11.6),(4X))',advance='no') real(mu_loc(m1,m1,s1))
+            do m2=1,ndim
+               do s2=1,nspin
+                  if (s1==s2) then
+                     write(mu_matrix_solver_out,'(I3,4X,I3,4X,(F10.5),(4X),(F10.5))')          &
+                           & ((m1-1)*2+s1-1),((m2-1)*2+s2-1),  -real( mu_loc(m1,m2,s1)), &  ! CT-HYB wants negative value
+                           &                                   -aimag(mu_loc(m1,m2,s1))
+                  else  
+                     write(mu_matrix_solver_out,'(I3,4X,I3,4X,(F10.5),(4X),(F10.5))') &
+                                   & ((m1-1)*2+s1-1),((m2-1)*2+s2-1), 0.0, 0.0
+                  endif
+
+               enddo ! s2
+            enddo ! m2
+         enddo ! s1
+      enddo ! m1
+
+      ! general matrix format for plotting
+      do s1=1,nspin
+         do m1=1,ndim
+            do m2=1,ndim
+             write(mu_matrix_out,'(2(F11.6,4X))',advance='no') real(mu_loc( m1,m2,s1) ),&
+                                  &                            aimag(mu_loc(m1,m2,s1) )
+            enddo ! m2
+            write(mu_matrix_out,'(A1)') ' '
+         enddo ! m1
+         write(mu_matrix_out,'(A1)') ' '
+      enddo ! s1
+
+      close(mu_out)
+      close(mu_matrix_out)
+      close(mu_matrix_solver_out)
+   end subroutine write_muloc_solver
+
+!  ============================================================
+!  == Write the a full norb x norb function split into atoms
+!  ============================================================
+   subroutine write_dmft_atom_parts(f,filename)
+      use params
+      use matsfunc_ops
+      complex(kr),intent(in)       :: f(:,:,:,:)       ! norb,norb,nspin,nw
+      character(len=*), intent(in) :: filename
+
+      complex(kr),allocatable :: fatom(:,:,:,:) ! norbPerAtom,norbPerAtom,nspin,nw
+      integer(ki)             :: a,w,s
+      character(len=1024)     :: path
+
+      do a=1,noAtoms
+         allocate( fatom( norbPerAtom(a),norbPerAtom(a),nspin,nomega) )
+         fatom = (0.0_kr,0.0_kr)
+         do s=1,nspin
+            do w=1,nomega
+               call get_dmftpart_atom(fatom(:,:,s,w),f(:,:,s,w), a)
+            enddo
+         enddo
+
+         if (a<10)  then
+            write(path, "(A,I1,A,A)") "imp",a,"/",filename
+         else
+           write(path, "(A,I2,A,A)") "imp",a,"/",filename
+         endif
+
+         call write_loc_matsfunc_matrix( trim(path),fatom )
+
+         deallocate(fatom)
+      enddo
+   end subroutine write_dmft_atom_parts
+
+!  ============================================================
+!  == Write the Kt function for freq,dependent interactions
+!  ============================================================
+   subroutine write_Kt_solver(uloc,filename)
+      use params
+      use matsfunc_ops
+      complex(kr),intent(in)       :: uloc(:,:,:,:)       ! norb**2,norb**2,nspin,nnu
+      character(len=*), intent(in) :: filename
+
+      complex(kr) :: Uavg(noAtoms,nnu)
+      integer(ki) :: a, m1,m2,m3,m4,s1,s2,n, ndim, k_out=10, it
+      real(kr)    :: K,Kp,tau, hfcoeff(2), Uval
+      character(len=1024)   :: path
+
+      if ( useUw/=0 ) then
+         ! now create the K(tau),K'(tau) functions, maybe put this somewhere else?
+         ! We assume Uavg = F0 and only use this
+         call get_Uavg(Uavg,uloc)
+
+         do a=1,noAtoms
+            
+            hfcoeff = get_highfreq_coeff_bosonic( Uavg(a,:) ) ! get constant term
+
+            write(*,'(A,I2,A,F9.5)') 'Using a fitted F0 for atom ',a,' when generating K(tau) of : ' &
+                    & ,hfcoeff(1)
+
+            if (a<10)  then
+               write(path, "(A,I1,A,A)") "imp",a,"/",filename
+            else
+               write(path, "(A,I2,A,A)") "imp",a,"/",filename
+            endif
+
+            open(unit=k_out,file=trim(path),status="unknown")
+            do it=0,ntau
+               K = 0.0_kr
+               Kp = 0.0_kr
+               tau = it*beta*1.0_kr/ntau
+               do n=1,nnu-1
+                   !K = K   - ( Uavg(n+1) - Ubare )*( cos(vn(n)*tau)-1 )*2.0_kr/(beta*vn(n)**2)
+                   !Kp = Kp + ( Uavg(n+1) - Ubare )*  sin(vn(n)*tau)    *2.0_kr/(beta*vn(n)   )
+                  K = K   - ( real(Uavg(a,n+1)) - hfcoeff(1) )*( cos(vn(n)*tau)-1 )*2.0_kr/(beta*vn(n)**2)
+                  Kp = Kp + ( real(Uavg(a,n+1)) - hfcoeff(1) )*  sin(vn(n)*tau)    *2.0_kr/(beta*vn(n)   )
+               enddo
+               ! n=0 case separately
+               !K = K   + ( Ubare - Uavg(1) )*(beta-tau)*tau/(2*beta)
+               !Kp = Kp + ( Ubare - Uavg(1) )*(beta-2*tau)/(2*beta)
+               K = K   + ( hfcoeff(1) - real(Uavg(a,1)) )*(beta-tau)*tau/(2*beta)
+               Kp = Kp + ( hfcoeff(1) - real(Uavg(a,1)) )*(beta-2*tau)/(2*beta)
+   
+               if (K<0.0_kr) K=0.0_kr
+   
+               write(k_out,'((ES14.7,3X,ES14.7,3X,ES14.7))') tau,K,Kp
+            enddo ! it
+            close(k_out)
+         enddo ! a atoms
+      endif
+
+   end subroutine write_Kt_solver
+
+!  ============================================================
 !  == Print the U-matrix to screen
 !  ============================================================
    subroutine print_umatrix(uloc)
       use params
       use matsfunc_ops
       complex(kr),intent(in) :: uloc(:,:,:,:)       ! norb**2,norb**2,nspin,nnu
-      integer(ki)            :: m1,m2,s1,s2
+      integer(ki)            :: m1,m2,m3,m4,s1,s2,a, i,j,k,l
       real(kr)               :: coeffs(2)
 
-      write(*,'(A)') 'Bare interaction matrix elements w=infty ( U_(ik)(jl) notation):'
-      do m1=1,size(uloc(:,1,1,1))
-         do m2=1,size(uloc(1,:,1,1))
+      do a=1,noAtoms
+         write(*,'(A,I2)') 'Atom ',a
+         write(*,'(A)') 'Bare DMFT interaction matrix elements w=infty ( U_(ik)(jl) notation):'
+         do m1=1,norbPerAtom(a)
+         do m2=1,norbPerAtom(a)
+         do m3=1,norbPerAtom(a)
+         do m4=1,norbPerAtom(a)
+            i = (norb_dmft(a,m1)-1)*norb + norb_dmft(a,m2)
+            j = (norb_dmft(a,m3)-1)*norb + norb_dmft(a,m4)
+
             if ( size(uloc(1,1,1,:)) > nfit ) then
-               coeffs = get_highfreq_coeff_bosonic(uloc(m1,m2,1,:))
+               coeffs = get_highfreq_coeff_bosonic(uloc(i,j,1,:))
                write(*,'((F7.4),(4X))',advance='no') coeffs(1)
             else
-               write(*,'((F7.4),(4X))',advance='no') real(uloc(m1,m2,1,1)) 
+               write(*,'((F7.4),(4X))',advance='no') real(uloc(i,j,1,1)) 
             endif
-         enddo
-         write(*,'(A1)') ' '
-      enddo
-      write(*,'(A)') ' '
+         enddo ! m4
+         enddo ! m3
+            write(*,'(A1)') ' '
+         enddo ! m2
+         enddo ! m1
 
-      write(*,'(A)') 'Screened interaction matrix elements w=0 ( U_(ik)(jl) notation):'
-      do m1=1,size(uloc(:,1,1,1))
-         do m2=1,size(uloc(1,:,1,1))
-            write(*,'((F7.4),(4X))',advance='no') real(uloc(m1,m2,1,1))
-         enddo
-         write(*,'(A1)') ' '
-      enddo
-      write(*,'(A)') ' '
+         if ( size(uloc(1,1,1,:)) > nfit ) then
+            write(*,'(A)') 'Screened DMFT interaction matrix elements w=0 ( U_(ik)(jl) notation):'
+            do m1=1,norbPerAtom(a)
+            do m2=1,norbPerAtom(a)
+            do m3=1,norbPerAtom(a)
+            do m4=1,norbPerAtom(a)
+               i = (norb_dmft(a,m1)-1)*norb + norb_dmft(a,m2)
+               j = (norb_dmft(a,m3)-1)*norb + norb_dmft(a,m4)
+   
+               write(*,'((F7.4),(4X))',advance='no') real(uloc(i,j,1,1)) 
 
+            enddo ! m4
+            enddo ! m3
+               write(*,'(A1)') ' '
+            enddo ! m2
+            enddo ! m1
+         endif
+
+      enddo ! a
+      write(*,'(A)') ' '
 
    end subroutine print_umatrix
    
@@ -2131,18 +2329,18 @@ do ik=0,nkx/2 + nky/2 + nky/2 + nkz/2
       complex(kr),intent(in)      :: f1(:,:,:,:),f2(:,:,:,:) ! norb,norb,nspin,nomega
       integer(ki),intent(in)      :: n                       ! at which omega
       character(len=*),intent(in) :: name1,name2
-      integer                     :: w,s,m1,m2
+      integer                     :: w,s,m1,m2,a
       complex(kr)  :: diff,fval
       
       diff = 0.0_kr
       fval = 1.0_kr
       
-      !do w=1,nomega
+      do a=1,noAtoms
          w = n
          do s=1,nspin
 
-            do m1=1,norbPerAtom
-              m2 = dmftOrbsIndex(m1)
+            do m1=1,norbPerAtom(a)
+              m2 = norb_dmft(a,m1)
               if ( abs(f1(m2,m2,s,w)-f2(m2,m2,s,w)) > abs(diff) ) then
                  diff =   f2(m2,m2,s,w) -f1(m2,m2,s,w)  
                   
@@ -2151,7 +2349,8 @@ do ik=0,nkx/2 + nky/2 + nky/2 + nkz/2
             enddo !m1
 
          enddo !s
-      !enddo !w
+      enddo !a
+
       write(*,'(A,A,A,A,I4,A,SP,F8.4,A,F6.1,A,F8.4,A,F6.1,A)') name1,' <-> ',name2,' diff at Freq n= ',n,':',  &
             & real(diff),' (',100*real(diff)/real(fval),'%), ',aimag(diff),'i (',100*aimag(diff)/aimag(fval),'%), '
    
@@ -2165,7 +2364,7 @@ do ik=0,nkx/2 + nky/2 + nky/2 + nkz/2
       !use matsfunc_ops
       complex(kr),intent(in)      :: f1(:,:,:,:),f2(:,:,:,:) ! norb,norb,nspin,nomega
       character(len=*),intent(in) :: name1,name2
-      integer                     :: w,s,m1,m2
+      integer                     :: w,s,m1,m2,a
       real(kr)  :: diff, diffDiag, diffDiagAtom
       
       diff = 0.0_kr
@@ -2187,12 +2386,14 @@ do ik=0,nkx/2 + nky/2 + nky/2 + nkz/2
                enddo !m2
             enddo !m1
 
-            do m1=1,norbPerAtom
-              if (abs(f1(dmftOrbsIndex(m1),dmftOrbsIndex(m1),s,w)-f2(dmftOrbsIndex(m1),dmftOrbsIndex(m1),s,w))>diffDiagAtom) then
-                 diffDiagAtom = abs(  f1(dmftOrbsIndex(m1),dmftOrbsIndex(m1),s,w)          &
-                            &        -f2(dmftOrbsIndex(m1),dmftOrbsIndex(m1),s,w)  )
+            do a=1,noAtoms
+               do m1=1,norbPerAtom(a)
+                 if (abs(f1(norb_dmft(a,m1),norb_dmft(a,m1),s,w)-f2(norb_dmft(a,m1),norb_dmft(a,m1),s,w))>diffDiagAtom) then
+                    diffDiagAtom = abs(  f1(norb_dmft(a,m1),norb_dmft(a,m1),s,w)          &
+                               &        -f2(norb_dmft(a,m1),norb_dmft(a,m1),s,w)  )
               endif
-            enddo !m1
+               enddo ! m1
+            enddo ! a
 
          enddo !s
       enddo !w
@@ -2335,9 +2536,9 @@ do ik=0,nkx/2 + nky/2 + nky/2 + nkz/2
    subroutine read_utrafo()
       use params
 
-      integer(ki) :: s,m1,m2
+      integer(ki) :: s,m1,m2,a, i,j
       integer(ki),parameter :: iounit = 10
-      real(kr)              :: readindata(norbPerAtom) ! temparray for readin
+      real(kr),allocatable  :: readindata(:) ! temparray for readin
 
       ! Utrafo(norbPerAtom,norbPerAtom,nspin)
       ! UtrafoT(norbPerAtom,norbPerAtom,nspin)
@@ -2346,7 +2547,7 @@ do ik=0,nkx/2 + nky/2 + nky/2 + nkz/2
       Utrafo = (0.0_kr,0.0_kr)
       UtrafoT = (0.0_kr,0.0_kr)
       do s=1,nspin
-         do m1=1,norbPerAtom
+         do m1=1,norb
             Utrafo(m1,m1,s)  = 1.0_kr
             UtrafoT(m1,m1,s) = 1.0_kr
          enddo
@@ -2357,15 +2558,22 @@ do ik=0,nkx/2 + nky/2 + nky/2 + nkz/2
 
          open(unit=iounit,file="Utrafo.dat",status="old")
 
-         do s=1,nspin
-            do m1=1,norbPerAtom
-               read(iounit,*) readindata
-               Utrafo(m1,:,s) = readindata
-            enddo ! m1
+         do a=1,noAtoms
+            allocate(readindata(norbPerAtom(a)))
+            do s=1,nspin
+               do m1=1,norbPerAtom(a)
+                  read(iounit,*) readindata
+                  do m2=1,norbPerAtom(a)
+                     i = norb_dmft(a,m1)
+                     j = norb_dmft(a,m2)
+                     Utrafo(i,j,s) = readindata(m2)
+                  enddo ! m2
+               enddo ! m1
  
-            call get_inverse( UtrafoT(:,:,s),  Utrafo(:,:,s), norbPerAtom )
+               call get_inverse( UtrafoT(:,:,s),  Utrafo(:,:,s), norb )
 
-         enddo ! s
+            enddo ! s
+         enddo ! a
 
          close(iounit)
       endif
@@ -2423,10 +2631,10 @@ do ik=0,nkx/2 + nky/2 + nky/2 + nkz/2
 !  ============================================================
    subroutine read_Uavg_Javg(Uavg,Javg,filename)
       use params
-      real(kr),intent(inout)   :: Uavg(:), Javg(:)      ! nnu
+      real(kr),intent(inout)   :: Uavg(:,:), Javg(:,:)      ! noAtoms,nnu
       character(len=*),intent(in) :: filename
-      real(kr) :: tmp(2)
-      integer  :: iounit = 10,n
+      real(kr) :: tmp(2), wtmp
+      integer  :: iounit = 10,n,a
 
       Uavg = (0.0_kr)
       Javg = (0.0_kr)
@@ -2435,22 +2643,28 @@ do ik=0,nkx/2 + nky/2 + nky/2 + nkz/2
       write(*,'(A,A,A)') 'Reading freq.dep. F0 values from file ',filename,' ...'
       open(unit=iounit,file=filename,status="old")
       do n=1,nnu
-         read(iounit,*) tmp
-         Uavg(n) = tmp(2)
-         Javg(n) = Jinput
+         read(iounit,*) wtmp ! frequency
+
+         do a=1,noAtoms
+            read(iounit,*) tmp
+            Uavg(a,n) = tmp(2)
+            Javg(a,n) = Jinput
+         enddo
       enddo
       close(iounit)
 
-      write(*,'(A,F9.4,A,F9.4,A,F9.4)') ' Reading: F0(0)=',Uavg(1),' ... F0(nnu/2)=', Uavg(1+nnu/2),' ... F0(nnu)=', Uavg(nnu)
       write(*,'(A,F9.4)') ' F0 bare (from input file) = ',Uinput
+      do a=1,noAtoms
+         write(*,'(A,I2,A,F9.4,A,F9.4,A,F9.4)') ' Atom',a,'Reading: F0(0)=',Uavg(a,1),' ... F0(nnu/2)=', Uavg(a,1+nnu/2),' ... F0(nnu)=', Uavg(a,nnu)
 
-      if ( abs(Uavg(nnu)-Uinput)>1.0_kr ) then
-        write(*,'(A)')              '!!! ============================================================================== !!!'
-        write(*,'(A)')              '!!! WARNING: Uinput and U(inu_n->inf) are very different !'
-        write(*,'(A,F9.4,A5,F9.4)') '!!! ',Uavg(nnu),' <-> ',Uinput
-        write(*,'(A)')              '!!! Please check whether you forgot to set Uinput,Jinput correctly in the DMFT input file!'
-        write(*,'(A)')              '!!! ============================================================================== !!!'
-      endif
+         if ( abs(Uavg(a,nnu)-Uinput)>1.0_kr ) then
+           write(*,'(A)')              '!!! ============================================================================== !!!'
+           write(*,'(A,I2,A)')         '!!! WARNING: Uinput and U(inu_n->inf) are very different for atom',a,' !'
+           write(*,'(A,F9.4,A5,F9.4)') '!!! ',Uavg(a,nnu),' <-> ',Uinput
+           write(*,'(A)')              '!!! Please check whether you forgot to set Uinput,Jinput correctly in the DMFT input file!'
+           write(*,'(A)')              '!!! ============================================================================== !!!'
+         endif
+      enddo
       write(*,'(A)') ' '
 
    end subroutine read_Uavg_Javg
@@ -2461,9 +2675,10 @@ do ik=0,nkx/2 + nky/2 + nky/2 + nkz/2
    subroutine obtain_Uavg_Javg(Uavg,Javg,uloc)
         use params
         use matsfunc_ops
-        real(kr),intent(inout) :: Uavg(:)        ! nnu
-        real(kr),intent(inout) :: Javg(:)        ! nnu
-        complex(kr),intent(in)    :: uloc(:,:,:,:)  ! norb**2,norb**2,nspin,nnu
+        real(kr),intent(inout) :: Uavg(:,:)        ! nnu
+        real(kr),intent(inout) :: Javg(:,:)        ! nnu
+        complex(kr),intent(in) :: uloc(:,:,:,:)  ! norb**2,norb**2,nspin,nnu
+        integer(ki)            :: a
 
         Uavg = (0.0_kr)
         Javg = (0.0_kr)
@@ -2485,13 +2700,18 @@ do ik=0,nkx/2 + nky/2 + nky/2 + nkz/2
                stop
             endif
 
-            Uavg(1) = Uinput
-            Javg(1) = Jinput
+            do a=1,noAtoms
+               Uavg(a,1) = Uinput
+               Javg(a,1) = Jinput
+            enddo
         endif
 
         write(*,'(A)') 'Obtained the following interaction values:'
-        write(*,'(A,F7.3,A,F7.3)') ' Uavg(0)  = ',Uavg(1), ', Javg(0)  = ',Javg(1)
-        write(*,'(A,F7.3,A,F7.3)') ' Uinput    = ',Uinput,   ', Jinput    = ',Jinput
+        do a=1,noAtoms
+           write(*,'(A,I2)') 'Atom ',a
+           write(*,'(A,F7.3,A,F7.3)') ' Uavg(0)  = ',Uavg(a,1), ', Javg(0)  = ',Javg(a,1)
+           write(*,'(A,F7.3,A,F7.3)') ' Uinput    = ',Uinput,   ', Jinput    = ',Jinput
+        enddo
         if (useUw==1) then
             write(*,'(A)') ' U(inu_n) is frequency dependent!'
         else

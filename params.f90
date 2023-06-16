@@ -23,13 +23,14 @@ module params
    integer(ki)              :: nkx,nky,nkz, nkpts, ntau, niter, nfit=15
    integer(ki)              :: DCtype, spinorder,contcalc,readUmatrix,avgHartreeFock, neglectOffdiagBath, diagBath
    integer(ki)              :: updateHFdc
-   integer(ki)              :: norb_dmft, noEquivAtoms, norbPerAtom, bathMethod
-   integer(ki),allocatable  :: dmftOrbsIndex(:)
+   integer(ki),allocatable  :: norb_dmft(:,:), norbPerAtom(:)
+   integer(ki)              :: bathMethod, noAtoms
+!   integer(ki),allocatable  :: dmftOrbsIndex(:)
 !   type(degenarateOrbitals) :: degOrbs
    real(kr)                 :: beta, nel, mu, charge_error, mixing
    real(kr)                 :: Uinput, Jinput, Unninput, U0scaleFac,dist_interaction
    real(kr)                 :: hfield(2)        
-   complex(kr),allocatable  :: Utrafo(:,:,:),UtrafoT(:,:,:)         ! Basis transformation (norbPerAtom,norbPerAtom.nspin)
+   complex(kr),allocatable  :: Utrafo(:,:,:),UtrafoT(:,:,:)         ! Basis transformation (norb,norb,nspin)
    !!
    ! DCA !
    integer(ki)              :: interpDCA, npx, npy  !,nkpx,nkpy

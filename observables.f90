@@ -94,7 +94,7 @@ module observables
       allocate( unity(norb,norb) )
 
       ! if there are uncorrelated orbitals, increase the lower bound...
-      if (norb /= norb_dmft) a = -10.0_kr
+!      if (norb /= norb_dmft) a = -10.0_kr
 
 !  ====================================================
 !  == Create identity matrix for use with iw_n + mu ==
@@ -186,7 +186,7 @@ module observables
          do w=1,nomega
             write(iounitg,'(I5,3X,ES12.5,3X)',advance='no') ik, wn(w-1)
             do s=1,nspin
-               do m=1,norb/noEquivAtoms
+               do m=1,norb
                   write(iounitg,'(ES12.5,3X,ES12.5,3X)',advance='no') real(gf_tmp(m,m,s,w)),aimag(gf_tmp(m,m,s,w))
                enddo
             enddo
@@ -196,7 +196,7 @@ module observables
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
          ! get continuation of all orbitals, spins, only diagonals
-         do m=1,norb/noEquivAtoms
+         do m=1,norb
             do s=1,nspin
                call init_pade( gf_tmp(m,m,s,:),nomega,.true.)
                do n=1,realnw
@@ -210,7 +210,7 @@ module observables
         do n=1,realnw
            write(iounit,'(I5,3X,ES12.5,3X)',advance='no') ik, a + dx*n
            do s=1,nspin
-              do m=1,norb/noEquivAtoms
+              do m=1,norb
                  write(iounit,'(ES12.5,3X)',advance='no') -AIMAG(cont_gf(m,s,n))/pi
               enddo
            enddo
