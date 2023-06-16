@@ -141,7 +141,7 @@ module gw
 
                        ! U term
                        a = (m1-1)*norb+m1          
-                       V(a,b,:,:,:) = U0*U0scaleFac
+                       V(a,a,:,:,:) = U0*U0scaleFac
         
                        do j=1,norbPerAtom(atom)
                           if ( i/=j) then
