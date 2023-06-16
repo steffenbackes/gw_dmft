@@ -1032,9 +1032,8 @@ module matsfunc_ops
             do m1=1,norb  ! Failsafe
                gbath_tmp(m1,m1) = (1.0_kr,0.0_kr)
                gimp_tmp(m1,m1) = (1.0_kr,0.0_kr)
-            enddo
+            enddo ! m1
 
-            !only the atomic onsite term of the correlated atoms, ONLY FIRST ATOM
             do a=1,noAtoms
                do m1=1,norbPerAtom(a)
                   do m2=1,norbPerAtom(a)
@@ -1042,9 +1041,9 @@ module matsfunc_ops
                      mm2 = norb_dmft(a,m2)
                      gbath_tmp(mm1,mm2) = gbath(mm1,mm2 ,s,w)
                      gimp_tmp(mm1,mm2)  = gimp(mm1,mm2 ,s,w)
-                  enddo
-               enddo
-            enddo
+                  enddo ! m2
+               enddo ! m1
+            enddo ! a
 
             ! Fix tails
             do a=1,noAtoms
@@ -1053,11 +1052,17 @@ module matsfunc_ops
                   gbath_tmp(mm1,mm1) = gbath_tmp(mm1,mm1)/coeffs_gb(mm1,s,2)
                   gimp_tmp(mm1,mm1)  = gimp_tmp(mm1,mm1) /coeffs_gi(mm1,s,2)
                   if (w==1) then
-                     write(*,*) 'Coeffs for Gbath in Dyson Eq:', coeffs_gb(mm1,s,2)
-                     write(*,*) 'Coeffs for Gimp in Dyson Eq',coeffs_gi(mm1,s,2)
+                     if (abs(coeffs_gb(mm1,s,2)-1.0_kr) > 0.05_kr) then 
+                        write(*,'(A,I3,A,I2,A,F9.5)') 'ERROR: Gbath tail: m=',mm1,", s=",s,' = ', coeffs_gb(mm1,s,2)
+                        stop(1)
+                     endif
+                     if (abs(coeffs_gi(mm1,s,2)-1.0_kr) > 0.05_kr) then 
+                        write(*,'(A,I3,A,I2,A,F9.5)') 'ERROR: Gimp tail: m=',mm1,", s=",s,' = ', coeffs_gi(mm1,s,2)
+                        stop(1)
+                     endif
                   endif
-               enddo
-            enddo
+               enddo ! m
+            enddo ! a
             !if (w==1) then
             !   write(*,*) 'Gbath = ',gbath_tmp
             !   write(*,*) 'Gimp = ',gimp_tmp

@@ -1019,7 +1019,7 @@ module io_ops
          write(*,'(A,A,A)') "Reading file ",trim(imppath)," ..."
          open(unit=iounit,file=trim(imppath),status="old")
 
-         allocate( readindata(1+2*nspin*norbPerAtom(a)) )   
+         allocate( readindata(1+2*nspin*norbPerAtom(a)**2) )   
 
          do w=1,size(f(1,1,1,:))
             read(iounit,*) readindata
