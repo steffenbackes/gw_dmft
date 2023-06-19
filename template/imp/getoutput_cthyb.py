@@ -24,10 +24,14 @@ print 'Found norb=',norb
 
 inf.readline()
 
+infg0 = open('g_bath.dat','r')
+outfS = open('Swl.dat','w')
 for n in range(nw):
 	outf.write( "{:.7e}".format( (2*n+1)*np.pi/beta ) + '\t')
+	outfS.write( "{:.7e}".format( (2*n+1)*np.pi/beta ) + '\t')
+	dataG0 = [float(x) for x in infg0.readline().split()]
 
-	gimp = np.zeros((norb,norb,2),dtype=complex)
+	gimp  = np.zeros((norb,norb,2),dtype=complex)
 	gimps = np.zeros((norb,norb,2,2),dtype=complex)
 
 	for m1 in range(norb):
@@ -38,13 +42,26 @@ for n in range(nw):
 					gimps[m1,m2,s1,s2] = data[0] + data[1]*1.0j
 
 	for s in range(2):
+		g0 = np.zeros((norb,norb),dtype=complex)
+      # read g0
+		for m1 in range(norb):
+			for m2 in range(norb):
+				g0[m1,m2] = dataG0[1+s*(norb**2)*2+m2*norb*2+m1*2+0] + dataG0[1+s*(norb**2)*2+m2*norb*2+m1*2+1]*1.0j
+
+		Sig = np.linalg.inv(g0) - np.linalg.inv(gimps[:,:,s,s])
+
 		for m1 in range(norb):
 			for m2 in range(norb):
 				outf.write("{:.7e}".format(gimps[m1,m2,s,s].real) + '\t' + "{:.7e}".format(gimps[m1,m2,s,s].imag) + '\t') 
 
+				outfS.write("{:.7e}".format(Sig[m1,m2].real) + '\t' + "{:.7e}".format(Sig[m1,m2].imag) + '\t') 
+
 	outf.write('\n')
+	outfS.write('\n')
 outf.close()
 inf.close()
+infg0.close()
+outfS.close()
 
 # legendre coeffs
 inf = open('gf_legendre.dat','r')

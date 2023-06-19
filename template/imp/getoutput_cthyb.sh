@@ -1,6 +1,6 @@
 #!/bin/bash
 echo "Filling:"
-h5dump -d /simulation/results/n/mean/value input.out.h5 | tail -n 7 | head -n 3
+h5dump -d /simulation/results/n/mean/value input.out.h5 | tail -n 6 | head -n 3
 
 echo "Sign:"
 h5dump -d /Sign input.out.h5 | tail -n 4 | head -n 1
