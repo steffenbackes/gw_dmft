@@ -1049,8 +1049,8 @@ module matsfunc_ops
             do a=1,noAtoms
                do m=1,norbPerAtom(a)
                   mm1 = norb_dmft(a,m)
-                  gbath_tmp(mm1,mm1) = gbath_tmp(mm1,mm1)/coeffs_gb(mm1,s,2)
-                  gimp_tmp(mm1,mm1)  = gimp_tmp(mm1,mm1) /coeffs_gi(mm1,s,2)
+!                  gbath_tmp(mm1,mm1) = gbath_tmp(mm1,mm1)/coeffs_gb(mm1,s,2)  ! Turns out it doesn't work so well!
+!                  gimp_tmp(mm1,mm1)  = gimp_tmp(mm1,mm1) /coeffs_gi(mm1,s,2)
                   if (w==1) then
                      if (abs(coeffs_gb(mm1,s,2)-1.0_kr) > 0.05_kr) then 
                         write(*,'(A,I3,A,I2,A,F9.5)') 'ERROR: Gbath tail: m=',mm1,", s=",s,' = ', coeffs_gb(mm1,s,2)
