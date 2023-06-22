@@ -11,7 +11,7 @@ measurement.G1.n_matsubara=1000
 measurement.G1.n_legendre=40
 
 model.coulomb_tensor_input_file="Uijkl.dat"
-model.hopping_matrix_input_file="mu_matrix_solver.dat"
+model.hopping_matrix_input_file="mu_loc_matrix_solver.dat"
 model.delta_input_file="delta0_matrix_solver.dat"
 verbose=0
 

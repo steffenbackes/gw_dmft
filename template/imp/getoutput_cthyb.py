@@ -15,12 +15,12 @@ for i in range(3):
 
 data = inf.readline().replace(',',' ').split()
 nw = int(data[4])
-norb = int(data[5])/2
+norb = int( int(data[5])/2 )
 
-print 'Getoutput:'
-print 'Found beta=',beta
-print 'Found nw=',nw
-print 'Found norb=',norb
+print( 'Getoutput:' )
+print( 'Found beta=',beta )
+print( 'Found nw=',nw )
+print( 'Found norb=',norb )
 
 inf.readline()
 
@@ -70,7 +70,7 @@ for i in range(3):
 
 data = inf.readline().replace(',',' ').split()
 nlegendre = int(data[6])
-print 'Found nlegendre=',nlegendre
+print( 'Found nlegendre=',nlegendre )
 
 legendre = np.zeros((nlegendre,norb,norb,2))
 inf.readline()

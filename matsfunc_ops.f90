@@ -1385,19 +1385,13 @@ module matsfunc_ops
       complex(kr),intent(inout) :: gbath(:,:,:,:)      ! norb,norb,nspin,nomega
       real(kr),intent(in)       :: mu_loc(:,:,:)       ! norb,norb,nspin
 
-      complex(8),allocatable  :: gbath_tmp(:,:)        ! norb,norb
-      real(kr),allocatable    :: unity(:,:)            ! norb,norb
-      integer(ki)             :: w,s,i
+      complex(kr),allocatable :: gbath_tmp(:,:)        ! norbPerAtom,norbPerAtom
+      complex(kr),allocatable :: mu_loc_proj(:,:)      ! norbPerAtom,norbPerAtom
+      complex(kr),allocatable :: hybrid_proj(:,:)      ! norbPerAtom,norbPerAtom
+      real(kr),allocatable    :: unity(:,:)            ! norbPerAtom,norbPerAtom
+      integer(ki)             :: w,s,i,j,m1,m2,atom
       real(kr)                :: coeffs(5)
-  !   Lapack stuff
-      complex(8), dimension(norb) :: work  ! work array for LAPACK
-      integer, dimension(norb)    :: ipiv  ! pivot indices
-      integer :: info_lpck
-      external ZGETRF
-      external ZGETRI
 
-      allocate( gbath_tmp(norb,norb) )
-      allocate( unity(norb,norb) )
 
       hybrid = (0.0_kr,0.0_kr)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1417,33 +1411,38 @@ module matsfunc_ops
 !  ====================================================
 !  == Create identity matrix for use with iw_n ==
 !  == Convert the local orbital levels into a matrix =
-      unity = (0.0_kr)
-      do i=1,norb
-         unity(i,i) = 1.0_kr
-      enddo
 !  ====================================================
 
-      do w=1,nomega
-         do s=1,nspin
+      do atom=1,noAtoms
+         allocate( gbath_tmp(norbPerAtom(atom),norbPerAtom(atom)) )
+         allocate( mu_loc_proj(norbPerAtom(atom),norbPerAtom(atom)) )
+         allocate( hybrid_proj(norbPerAtom(atom),norbPerAtom(atom)) )
+         allocate( unity(norbPerAtom(atom),norbPerAtom(atom)) )
+         unity = (0.0_kr)
+         do i=1,norbPerAtom(atom)
+            unity(i,i) = 1.0_kr
+         enddo
 
-            ! use a copy of the local Greensfunction
-            gbath_tmp = gbath(:,:,s,w)
+         do w=1,nomega
+            do s=1,nspin
+               hybrid_proj = (0.0_kr,0.0_kr)
 
-            ! Then invert with LAPACK
-            call ZGETRF(norb, norb, gbath_tmp, norb, ipiv, info_lpck)
-            if (info_lpck /= 0) then
-               write(*,*)' ERROR: bath Greensfunction is numerically singular! Return value',&
-                         & info_lpck
-               stop 
-            end if
-            call ZGETRI(norb, gbath_tmp, norb, ipiv, work, norb, info_lpck)
-            if (info_lpck /= 0) then
-              stop 'Matrix inversion failed!'
-            end if
-            ! gbath_tmp is now the inverse of g_bath
+               call get_dmftpart_atom(gbath_tmp, gbath(:,:,s,w) ,atom)
+               call get_dmftpart_atom_cr(mu_loc_proj, mu_loc(:,:,s) ,atom)
+
+               ! Gbath^-1
+               call get_inverse( gbath_tmp, gbath_tmp, norbPerAtom(atom) )
+
+               hybrid_proj = ci*wn(w-1)*unity + mu_loc_proj - gbath_tmp
             
-            ! Calculate hybridization function
-            hybrid(:,:,s,w) = ci*wn(w-1)*unity + mu_loc(:,:,s) - gbath_tmp
+               ! Then copy to the atom submatrix
+               do i=1,norbPerAtom(atom)
+                  do j=1,norbPerAtom(atom)
+                     m1 = norb_dmft(atom,i)
+                     m2 = norb_dmft(atom,j)
+                     hybrid(m1,m2,s,w) = hybrid_proj(i,j)
+                  enddo ! j
+               enddo ! i
 
             ! on real frequencies!
 !            hybrid(:,:,s,w) = ( -5.0+w*13.0/nomega+0.01*ci )*unity + mu_loc(:,:,s) - gbath_tmp
@@ -1454,8 +1453,14 @@ module matsfunc_ops
 !            enddo
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-         enddo
-      enddo
+            enddo ! s
+         enddo ! w 
+
+         deallocate(gbath_tmp)
+         deallocate(unity)
+         deallocate(mu_loc_proj)
+         deallocate(hybrid_proj)
+      enddo ! atom
 
 !      write(*,'(A)') 'WARNING: We set the c0 coeff of the Hybrid function to zero, but calculate mu_loc'
 !      write(*,'(A)') 'WARNING: from the formula: HartreeFock - g2 '
@@ -1473,10 +1478,8 @@ module matsfunc_ops
 !            end do
 !         end do
 !      end do
-      write(*,'(A)') ' '
+!      write(*,'(A)') ' '
 
-      deallocate(gbath_tmp)
-      deallocate(unity)
    end subroutine get_hybrid
 
 !  ============================================================
